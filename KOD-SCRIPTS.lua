@@ -2,8 +2,8 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local SUPPORTED_GAMES = {
-    [3623096087] = "https://raw.githubusercontent.com/PAPIKING-CODER/KOD-STUDIO/refs/heads/main/M%C3%9ASCLELEGENDS.lua",
-    [3956818381] = "https://raw.githubusercontent.com/PAPIKING-CODER/KOD-STUDIO/refs/heads/main/NINJA-LEGEND",
+    [3623096087] = "https://raw.githubusercontent.com/KING-STUDIO-OFFICIAL/SCRIPT-RAW/refs/heads/main/muscle-legends.lua",
+    [3956818381] = "https://raw.githubusercontent.com/KING-STUDIO-OFFICIAL/SCRIPT-RAW/refs/heads/main/NINJA-LEGENDS.lua",
 }
 
 local function loadGameScript()
