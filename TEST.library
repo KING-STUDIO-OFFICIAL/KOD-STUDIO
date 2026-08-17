@@ -5,6 +5,45 @@ local ui_options = {
 	can_resize = true,
 }
 
+-- TABLA DE PRESETS OFICIALES
+local GradientPresets = {
+	kod_original = {
+		Color3.fromRGB(18, 0, 0),
+		Color3.fromRGB(95, 0, 8),
+		Color3.fromRGB(210, 8, 20),
+		Color3.fromRGB(95, 0, 8),
+		Color3.fromRGB(18, 0, 0)
+	},
+	toxic = {
+		Color3.fromRGB(0, 15, 0),
+		Color3.fromRGB(0, 100, 20),
+		Color3.fromRGB(80, 255, 0),
+		Color3.fromRGB(0, 100, 20),
+		Color3.fromRGB(0, 15, 0)
+	},
+	blood = {
+		Color3.fromRGB(20, 0, 0),
+		Color3.fromRGB(100, 0, 0),
+		Color3.fromRGB(200, 0, 0),
+		Color3.fromRGB(100, 0, 0),
+		Color3.fromRGB(20, 0, 0)
+	},
+	purple = {
+		Color3.fromRGB(15, 0, 25),
+		Color3.fromRGB(90, 0, 160),
+		Color3.fromRGB(220, 80, 255),
+		Color3.fromRGB(90, 0, 160),
+		Color3.fromRGB(15, 0, 25)
+	},
+	blue = {
+		Color3.fromRGB(0, 10, 25),
+		Color3.fromRGB(0, 80, 180),
+		Color3.fromRGB(80, 180, 255),
+		Color3.fromRGB(0, 80, 180),
+		Color3.fromRGB(0, 10, 25)
+	}
+}
+
 do
 	local imgui = game:GetService("CoreGui"):FindFirstChild("imgui")
 	if imgui then imgui:Destroy() end
@@ -92,6 +131,7 @@ Prefabs.BackgroundColor3 = Color3.new(1, 1, 1)
 Prefabs.Size = UDim2.new(0, 100, 0, 100)
 Prefabs.Visible = false
 
+
 Label.Name = "Label"
 Label.Parent = Prefabs
 Label.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -113,7 +153,7 @@ Window.Position = UDim2.new(0, 20, 0, 20)
 Window.Selectable = true
 Window.Size = UDim2.new(0, 200, 0, 200)
 Window.Image = "rbxassetid://2851926732"
-Window.ImageColor3 = Color3.fromRGB(35, 35, 40) -- Fondo más claro
+Window.ImageColor3 = Color3.fromRGB(35, 35, 40) -- Fondo base más claro por defecto
 Window.ImageTransparency = 0.2
 Window.BackgroundTransparency = 0.2
 Window.ScaleType = Enum.ScaleType.Slice
@@ -194,7 +234,7 @@ TabSelection.Position = UDim2.new(0, 15, 0, 30)
 TabSelection.Size = UDim2.new(1, -30, 0, 25)
 TabSelection.Visible = false
 TabSelection.Image = "rbxassetid://2851929490"
-TabSelection.ImageColor3 = Color3.fromRGB(45, 45, 50) -- Más claro
+TabSelection.ImageColor3 = Color3.fromRGB(45, 45, 50)
 TabSelection.ScaleType = Enum.ScaleType.Slice
 TabSelection.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -251,7 +291,7 @@ TextBox_Roundify_4px.BackgroundColor3 = Color3.new(1, 1, 1)
 TextBox_Roundify_4px.BackgroundTransparency = 1
 TextBox_Roundify_4px.Size = UDim2.new(1, 0, 1, 0)
 TextBox_Roundify_4px.Image = "rbxassetid://2851929490"
-TextBox_Roundify_4px.ImageColor3 = Color3.fromRGB(50, 50, 55) -- Más claro
+TextBox_Roundify_4px.ImageColor3 = Color3.fromRGB(50, 50, 55)
 TextBox_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 TextBox_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -262,7 +302,7 @@ Slider.BackgroundTransparency = 1
 Slider.Position = UDim2.new(0, 0, 0.178571433, 0)
 Slider.Size = UDim2.new(1, 0, 0, 20)
 Slider.Image = "rbxassetid://2851929490"
-Slider.ImageColor3 = Color3.fromRGB(40, 40, 45) -- Más claro
+Slider.ImageColor3 = Color3.fromRGB(40, 40, 45)
 Slider.ScaleType = Enum.ScaleType.Slice
 Slider.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -284,7 +324,7 @@ Indicator.BackgroundColor3 = Color3.new(1, 1, 1)
 Indicator.BackgroundTransparency = 1
 Indicator.Size = UDim2.new(0, 0, 0, 20)
 Indicator.Image = "rbxassetid://2851929490"
-Indicator.ImageColor3 = Color3.fromRGB(60, 60, 65) -- Más claro
+Indicator.ImageColor3 = Color3.fromRGB(60, 60, 65)
 Indicator.ScaleType = Enum.ScaleType.Slice
 Indicator.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -363,7 +403,7 @@ Box.Position = UDim2.new(0, 0, 0, 25)
 Box.Size = UDim2.new(1, 0, 0, 150)
 Box.ZIndex = 3
 Box.Image = "rbxassetid://2851929490"
-Box.ImageColor3 = Color3.fromRGB(45, 45, 50) -- Más claro
+Box.ImageColor3 = Color3.fromRGB(45, 45, 50)
 Box.ScaleType = Enum.ScaleType.Slice
 Box.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -386,7 +426,7 @@ TextButton_Roundify_4px.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px.BackgroundTransparency = 1
 TextButton_Roundify_4px.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px.ImageColor3 = Color3.fromRGB(50, 50, 55) -- Más claro
+TextButton_Roundify_4px.ImageColor3 = Color3.fromRGB(50, 50, 55)
 TextButton_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -409,7 +449,7 @@ TextButton_Roundify_4px_2.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px_2.BackgroundTransparency = 1
 TextButton_Roundify_4px_2.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px_2.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px_2.ImageColor3 = Color3.fromRGB(50, 50, 55) -- Más claro
+TextButton_Roundify_4px_2.ImageColor3 = Color3.fromRGB(50, 50, 55)
 TextButton_Roundify_4px_2.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_2.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -420,7 +460,7 @@ Folder.BackgroundTransparency = 1
 Folder.Position = UDim2.new(0, 0, 0, 50)
 Folder.Size = UDim2.new(1, 0, 0, 20)
 Folder.Image = "rbxassetid://2851929490"
-Folder.ImageColor3 = Color3.fromRGB(35, 35, 40) -- Más claro
+Folder.ImageColor3 = Color3.fromRGB(35, 35, 40)
 Folder.ScaleType = Enum.ScaleType.Slice
 Folder.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -484,7 +524,7 @@ Console.BackgroundColor3 = Color3.new(1, 1, 1)
 Console.BackgroundTransparency = 1
 Console.Size = UDim2.new(1, 0, 0, 200)
 Console.Image = "rbxassetid://2851928141"
-Console.ImageColor3 = Color3.fromRGB(45, 45, 50) -- Más claro
+Console.ImageColor3 = Color3.fromRGB(45, 45, 50)
 Console.ScaleType = Enum.ScaleType.Slice
 Console.SliceCenter = Rect.new(8, 8, 8, 8)
 
@@ -639,7 +679,7 @@ ColorPicker.BackgroundColor3 = Color3.new(1, 1, 1)
 ColorPicker.BackgroundTransparency = 1
 ColorPicker.Size = UDim2.new(0, 180, 0, 110)
 ColorPicker.Image = "rbxassetid://2851929490"
-ColorPicker.ImageColor3 = Color3.fromRGB(50, 50, 55) -- Más claro
+ColorPicker.ImageColor3 = Color3.fromRGB(50, 50, 55)
 ColorPicker.ScaleType = Enum.ScaleType.Slice
 ColorPicker.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -763,7 +803,7 @@ Keybind.BackgroundColor3 = Color3.new(1, 1, 1)
 Keybind.BackgroundTransparency = 1
 Keybind.Size = UDim2.new(0, 200, 0, 20)
 Keybind.Image = "rbxassetid://2851929490"
-Keybind.ImageColor3 = Color3.fromRGB(50, 50, 55) -- Más claro
+Keybind.ImageColor3 = Color3.fromRGB(50, 50, 55)
 Keybind.ScaleType = Enum.ScaleType.Slice
 Keybind.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -798,7 +838,7 @@ Input_Roundify_4px.BackgroundColor3 = Color3.new(1, 1, 1)
 Input_Roundify_4px.BackgroundTransparency = 1
 Input_Roundify_4px.Size = UDim2.new(1, 0, 1, 0)
 Input_Roundify_4px.Image = "rbxassetid://2851929490"
-Input_Roundify_4px.ImageColor3 = Color3.fromRGB(65, 65, 70) -- Más claro
+Input_Roundify_4px.ImageColor3 = Color3.fromRGB(65, 65, 70)
 Input_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 Input_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -844,74 +884,81 @@ local function Resize(part, new, _delay)
 	tween:Play()
 end
 
--- FUNCIÓN DE DEGRADADOS MEJORADA CON ESTILOS DIFERENTES
-local function ApplyGradient(element, colors, style)
-	-- Eliminar gradiente anterior si existe
+-- FUNCIÓN PARA GENERAR PATRÓN DE FRANJAS (STRIPE GRADIENT)
+local function ApplyStripePattern(element, settings)
+	if not settings or not settings.enabled then return end
+	
+	-- Limpiar gradientes anteriores
 	local oldGradient = element:FindFirstChildOfClass("UIGradient")
-	if oldGradient then
-		oldGradient:Destroy()
+	if oldGradient then oldGradient:Destroy() end
+	
+	-- Obtener colores desde preset o custom
+	local colors
+	if settings.preset and GradientPresets[settings.preset] then
+		colors = GradientPresets[settings.preset]
+	elseif settings.colors and #settings.colors > 0 then
+		colors = settings.colors
+	else
+		return -- No hay colores definidos
 	end
 	
-	-- Si es un solo color, aplicarlo directamente
-	if typeof(colors) == "Color3" then
-		colors = {colors}
-	end
-	
-	if not colors or #colors == 0 then return end
-	
-	-- Si es un solo color, aplicar sin gradiente
-	if #colors == 1 then
-		if element:IsA("ImageLabel") or element:IsA("ImageButton") then
-			element.ImageColor3 = colors[1]
-		else
-			element.BackgroundColor3 = colors[1]
-		end
-		return
-	end
-	
-	-- Crear nuevo gradiente
+	-- Crear UIGradient
 	local gradient = Instance.new("UIGradient")
 	gradient.Parent = element
+	gradient.Rotation = settings.rotation or 0
+	gradient.Transparency = NumberSequence.new(settings.transparency or 0)
 	
-	-- Aplicar diferentes estilos de degradado
-	style = style or "horizontal"
+	-- Configurar secuencia de colores para crear el efecto de franjas repetidas
+	-- El truco es repetir el patrón de colores múltiples veces en el ColorSequence
+	local keyPoints = {}
+	local numRepeats = settings.count or 5 -- Cuántas veces se repite el patrón base
+	local segmentSize = 1 / numRepeats
 	
-	if style == "horizontal" then
-		gradient.Rotation = 0
-	elseif style == "vertical" then
-		gradient.Rotation = 90
-	elseif style == "diagonal" then
-		gradient.Rotation = 45
-	elseif style == "radial" then
-		gradient.Rotation = 0
-		gradient.Offset = Vector2.new(0.5, 0.5)
-	else
-		gradient.Rotation = tonumber(style) or 0
-	end
-	
-	-- Crear secuencia de colores
-	local colorSequence = {}
-	if #colors == 2 then
-		colorSequence = {
-			ColorSequenceKeypoint.new(0, colors[1]),
-			ColorSequenceKeypoint.new(1, colors[2])
-		}
-	elseif #colors >= 3 then
-		-- Distribuir colores uniformemente
-		for i, color in ipairs(colors) do
-			local position = (i - 1) / (#colors - 1)
-			table.insert(colorSequence, ColorSequenceKeypoint.new(position, color))
+	for i = 0, numRepeats - 1 do
+		local offset = i * segmentSize
+		for j, color in ipairs(colors) do
+			local pos = offset + ((j - 1) / (#colors - 1)) * segmentSize
+			-- Ajustar para gaps si es necesario, pero UIGradient maneja interpolación
+			table.insert(keyPoints, ColorSequenceKeypoint.new(pos, color))
 		end
 	end
 	
-	gradient.Color = ColorSequence.new(colorSequence)
+	-- Asegurar que termina en el último color
+	table.insert(keyPoints, ColorSequenceKeypoint.new(1, colors[#colors]))
 	
-	-- Hacer el elemento blanco para que el gradiente se vea correctamente
+	gradient.Color = ColorSequence.new(keyPoints)
+	
+	-- Hacer el elemento blanco para que el gradiente se vea
 	if element:IsA("ImageLabel") or element:IsA("ImageButton") then
 		element.ImageColor3 = Color3.new(1, 1, 1)
 	else
 		element.BackgroundColor3 = Color3.new(1, 1, 1)
 	end
+	
+	return gradient
+end
+
+-- ANIMACIÓN OPTIMIZADA PARA GRADIENTES
+local activeAnimations = {}
+
+local function StartGradientAnimation(element, gradient, speed)
+	if not element or not gradient then return end
+	
+	local connection
+	connection = RS.RenderStepped:Connect(function(dt)
+		if not element.Parent then
+			connection:Disconnect()
+			activeAnimations[element] = nil
+			return
+		end
+		
+		-- Desplazar el offset del gradiente para crear efecto de movimiento
+		local time = tick() * speed
+		local offsetValue = math.sin(time) * 0.5 + 0.5 -- Oscila entre 0 y 1 suavemente
+		gradient.Offset = Vector2.new(offsetValue, 0)
+	end)
+	
+	activeAnimations[element] = connection
 end
 
 local function rgbtohsv(r, g, b)
@@ -1025,9 +1072,9 @@ function library:AddWindow(title, options)
 	options = (typeof(options) == "table") and options or ui_options
 	options.tween_time = 0.1
 	
-	-- OPCIONES DE DEGRADADO
-	options.background_gradient = options.background_gradient or nil -- {Color3, Color3} o "diagonal", "vertical", etc
-	options.bar_gradient = options.bar_gradient or nil
+	-- Configuraciones de Stripe Gradient
+	local stripeSettings = options.stripe_gradient
+	local barStripeSettings = options.bar_stripe_gradient
 
 	local Window = Prefabs:FindFirstChild("Window"):Clone()
 	Window.Parent = Windows
@@ -1039,7 +1086,7 @@ function library:AddWindow(title, options)
 	Window.Size = UDim2.new(0, options.min_size.X, 0, options.min_size.Y)
 	Window.ZIndex = Window.ZIndex + (windows * 10)
 
-	do -- Altering Window Color
+	do -- Altering Window Color & Stripes
 		local Title = Window:FindFirstChild("Title")
 		local Bar = Window:FindFirstChild("Bar")
 		local Base = Bar:FindFirstChild("Base")
@@ -1047,39 +1094,52 @@ function library:AddWindow(title, options)
 		local SplitFrame = Window:FindFirstChild("TabSelection"):FindFirstChild("Frame")
 		local Toggle = Bar:FindFirstChild("Toggle")
 
-		spawn(function()
-			while true do
-				-- Aplicar degradado a la barra si se especifica
-				if options.bar_gradient then
-					if typeof(options.bar_gradient) == "table" and #options.bar_gradient > 1 then
-						ApplyGradient(Bar, options.bar_gradient, "horizontal")
-						ApplyGradient(Base, options.bar_gradient, "horizontal")
-						ApplyGradient(Top, options.bar_gradient, "horizontal")
-					else
+		-- Aplicar Stripe Gradient al Fondo de la Ventana
+		if stripeSettings and stripeSettings.enabled then
+			local bgGradient = ApplyStripePattern(Window, stripeSettings)
+			if bgGradient and stripeSettings.animated then
+				StartGradientAnimation(Window, bgGradient, stripeSettings.speed or 0.1)
+			end
+		else
+			-- Comportamiento original si no hay stripes
+			spawn(function()
+				while true do
+					Bar.BackgroundColor3 = options.main_color
+					Base.BackgroundColor3 = options.main_color
+					Base.ImageColor3 = options.main_color
+					Top.ImageColor3 = options.main_color
+					SplitFrame.BackgroundColor3 = options.main_color
+					RS.Heartbeat:Wait()
+				end
+			end)
+		end
+		
+		-- Aplicar Stripe Gradient a la Barra Superior
+		if barStripeSettings and barStripeSettings.enabled then
+			local barGradient = ApplyStripePattern(Bar, barStripeSettings)
+			ApplyStripePattern(Base, barStripeSettings)
+			ApplyStripePattern(Top, barStripeSettings)
+			
+			if barGradient and barStripeSettings.animated then
+				StartGradientAnimation(Bar, barGradient, barStripeSettings.speed or 0.1)
+			end
+		else
+			-- Color sólido para la barra si no hay stripes
+			spawn(function()
+				while true do
+					if not (barStripeSettings and barStripeSettings.enabled) then
 						Bar.BackgroundColor3 = options.main_color
 						Base.BackgroundColor3 = options.main_color
 						Base.ImageColor3 = options.main_color
 						Top.ImageColor3 = options.main_color
 					end
-				else
-					Bar.BackgroundColor3 = options.main_color
-					Base.BackgroundColor3 = options.main_color
-					Base.ImageColor3 = options.main_color
-					Top.ImageColor3 = options.main_color
+					RS.Heartbeat:Wait()
 				end
-				SplitFrame.BackgroundColor3 = options.main_color
-
-				RS.Heartbeat:Wait()
-			end
-		end)
-
-	end
-	
-	-- Aplicar degradado al fondo de la ventana si se especifica
-	if options.background_gradient then
-		if typeof(options.background_gradient) == "table" and #options.background_gradient > 1 then
-			ApplyGradient(Window, options.background_gradient, "diagonal")
+			end)
 		end
+		
+		SplitFrame.BackgroundColor3 = options.main_color
+
 	end
 
 	local Resizer = Window:WaitForChild("Resizer")
