@@ -1,3 +1,8 @@
+-- ============================================================
+-- KOD STUDIO LIBRARY - CON STRIPE GRADIENT SYSTEM
+-- Todos los colores son configurables externamente
+-- ============================================================
+
 local ui_options = {
 	main_color = Color3.fromRGB(41, 74, 122),
 	min_size = Vector2.new(400, 300),
@@ -5,7 +10,7 @@ local ui_options = {
 	can_resize = true,
 }
 
--- TABLA DE PRESETS OFICIALES
+-- TABLA DE PRESETS (solo atajos a colores, todos editables)
 local GradientPresets = {
 	kod_original = {
 		Color3.fromRGB(18, 0, 0),
@@ -131,7 +136,6 @@ Prefabs.BackgroundColor3 = Color3.new(1, 1, 1)
 Prefabs.Size = UDim2.new(0, 100, 0, 100)
 Prefabs.Visible = false
 
-
 Label.Name = "Label"
 Label.Parent = Prefabs
 Label.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -153,7 +157,7 @@ Window.Position = UDim2.new(0, 20, 0, 20)
 Window.Selectable = true
 Window.Size = UDim2.new(0, 200, 0, 200)
 Window.Image = "rbxassetid://2851926732"
-Window.ImageColor3 = Color3.fromRGB(35, 35, 40) -- Fondo base más claro por defecto
+Window.ImageColor3 = Color3.fromRGB(35, 35, 40)
 Window.ImageTransparency = 0.2
 Window.BackgroundTransparency = 0.2
 Window.ScaleType = Enum.ScaleType.Slice
@@ -884,51 +888,127 @@ local function Resize(part, new, _delay)
 	tween:Play()
 end
 
--- FUNCIÓN PARA GENERAR PATRÓN DE FRANJAS (STRIPE GRADIENT)
-local function ApplyStripePattern(element, settings)
-	if not settings or not settings.enabled then return end
+-- ============================================================
+-- FUNCIÓN PARA OBTENER COLORES DESDE PRESET O CUSTOM
+-- ============================================================
+local function GetStripeColors(settings)
+	if not settings then return nil end
 	
-	-- Limpiar gradientes anteriores
-	local oldGradient = element:FindFirstChildOfClass("UIGradient")
-	if oldGradient then oldGradient:Destroy() end
-	
-	-- Obtener colores desde preset o custom
-	local colors
+	-- Si hay preset válido, usar esos colores
 	if settings.preset and GradientPresets[settings.preset] then
-		colors = GradientPresets[settings.preset]
-	elseif settings.colors and #settings.colors > 0 then
-		colors = settings.colors
-	else
-		return -- No hay colores definidos
+		return GradientPresets[settings.preset]
 	end
+	
+	-- Si hay colores custom, usar esos
+	if settings.colors and typeof(settings.colors) == "table" and #settings.colors >= 2 then
+		return settings.colors
+	end
+	
+	return nil
+end
+
+-- ============================================================
+-- FUNCIÓN PARA APLICAR STRIPE GRADIENT A UN ELEMENTO
+-- ============================================================
+local function ApplyStripeGradient(element, settings)
+	if not element or not settings then return end
+	
+	-- Limpiar UIGradient anterior
+	for _, child in ipairs(element:GetChildren()) do
+		if child:IsA("UIGradient") then
+			child:Destroy()
+		end
+	end
+	
+	-- Obtener colores
+	local colors = GetStripeColors(settings)
+	if not colors or #colors < 2 then return end
 	
 	-- Crear UIGradient
 	local gradient = Instance.new("UIGradient")
 	gradient.Parent = element
-	gradient.Rotation = settings.rotation or 0
-	gradient.Transparency = NumberSequence.new(settings.transparency or 0)
 	
-	-- Configurar secuencia de colores para crear el efecto de franjas repetidas
-	-- El truco es repetir el patrón de colores múltiples veces en el ColorSequence
+	-- Rotación (0 = vertical, 90 = horizontal)
+	gradient.Rotation = settings.rotation or 0
+	
+	-- Transparencia
+	if settings.transparency then
+		gradient.Transparency = NumberSequence.new(settings.transparency)
+	else
+		gradient.Transparency = NumberSequence.new(0)
+	end
+	
+	-- Construir ColorSequence con franjas repetidas
 	local keyPoints = {}
-	local numRepeats = settings.count or 5 -- Cuántas veces se repite el patrón base
+	local numRepeats = settings.count or 3
 	local segmentSize = 1 / numRepeats
 	
 	for i = 0, numRepeats - 1 do
 		local offset = i * segmentSize
 		for j, color in ipairs(colors) do
 			local pos = offset + ((j - 1) / (#colors - 1)) * segmentSize
-			-- Ajustar para gaps si es necesario, pero UIGradient maneja interpolación
 			table.insert(keyPoints, ColorSequenceKeypoint.new(pos, color))
 		end
 	end
 	
-	-- Asegurar que termina en el último color
+	-- Asegurar punto final
 	table.insert(keyPoints, ColorSequenceKeypoint.new(1, colors[#colors]))
 	
 	gradient.Color = ColorSequence.new(keyPoints)
 	
-	-- Hacer el elemento blanco para que el gradiente se vea
+	-- CRÍTICO: Hacer el elemento BLANCO para que el gradiente se vea bien
+	if element:IsA("ImageLabel") or element:IsA("ImageButton") then
+		element.ImageColor3 = Color3.new(1, 1, 1)
+		element.ImageTransparency = settings.transparency or 0
+	else
+		element.BackgroundColor3 = Color3.new(1, 1, 1)
+		element.BackgroundTransparency = settings.transparency or 0
+	end
+	
+	-- Animación opcional
+	if settings.animated then
+		local speed = settings.speed or 0.1
+		local connection
+		connection = RS.RenderStepped:Connect(function()
+			if not element.Parent then
+				connection:Disconnect()
+				return
+			end
+			local time = tick() * speed
+			gradient.Offset = Vector2.new(math.sin(time) * 0.5 + 0.5, 0)
+		end)
+	end
+	
+	return gradient
+end
+
+-- ============================================================
+-- FUNCIÓN PARA APLICAR DEGRADADO SIMPLE (2-3 COLORES)
+-- ============================================================
+local function ApplySimpleGradient(element, colors, rotation)
+	if not element or not colors or #colors < 2 then return end
+	
+	-- Limpiar UIGradient anterior
+	for _, child in ipairs(element:GetChildren()) do
+		if child:IsA("UIGradient") then
+			child:Destroy()
+		end
+	end
+	
+	local gradient = Instance.new("UIGradient")
+	gradient.Parent = element
+	gradient.Rotation = rotation or 0
+	
+	-- Construir ColorSequence
+	local keyPoints = {}
+	for i, color in ipairs(colors) do
+		local pos = (i - 1) / (#colors - 1)
+		table.insert(keyPoints, ColorSequenceKeypoint.new(pos, color))
+	end
+	
+	gradient.Color = ColorSequence.new(keyPoints)
+	
+	-- Hacer elemento blanco
 	if element:IsA("ImageLabel") or element:IsA("ImageButton") then
 		element.ImageColor3 = Color3.new(1, 1, 1)
 	else
@@ -936,29 +1016,6 @@ local function ApplyStripePattern(element, settings)
 	end
 	
 	return gradient
-end
-
--- ANIMACIÓN OPTIMIZADA PARA GRADIENTES
-local activeAnimations = {}
-
-local function StartGradientAnimation(element, gradient, speed)
-	if not element or not gradient then return end
-	
-	local connection
-	connection = RS.RenderStepped:Connect(function(dt)
-		if not element.Parent then
-			connection:Disconnect()
-			activeAnimations[element] = nil
-			return
-		end
-		
-		-- Desplazar el offset del gradiente para crear efecto de movimiento
-		local time = tick() * speed
-		local offsetValue = math.sin(time) * 0.5 + 0.5 -- Oscila entre 0 y 1 suavemente
-		gradient.Offset = Vector2.new(offsetValue, 0)
-	end)
-	
-	activeAnimations[element] = connection
 end
 
 local function rgbtohsv(r, g, b)
@@ -1075,6 +1132,10 @@ function library:AddWindow(title, options)
 	-- Configuraciones de Stripe Gradient
 	local stripeSettings = options.stripe_gradient
 	local barStripeSettings = options.bar_stripe_gradient
+	
+	-- Configuraciones de degradado simple (2-3 colores)
+	local backgroundGradient = options.background_gradient
+	local barGradient = options.bar_gradient
 
 	local Window = Prefabs:FindFirstChild("Window"):Clone()
 	Window.Parent = Windows
@@ -1086,7 +1147,7 @@ function library:AddWindow(title, options)
 	Window.Size = UDim2.new(0, options.min_size.X, 0, options.min_size.Y)
 	Window.ZIndex = Window.ZIndex + (windows * 10)
 
-	do -- Altering Window Color & Stripes
+	do -- Altering Window Color & Gradients
 		local Title = Window:FindFirstChild("Title")
 		local Bar = Window:FindFirstChild("Bar")
 		local Base = Bar:FindFirstChild("Base")
@@ -1094,45 +1155,42 @@ function library:AddWindow(title, options)
 		local SplitFrame = Window:FindFirstChild("TabSelection"):FindFirstChild("Frame")
 		local Toggle = Bar:FindFirstChild("Toggle")
 
-		-- Aplicar Stripe Gradient al Fondo de la Ventana
+		-- ============================================
+		-- FONDO DE LA VENTANA
+		-- ============================================
 		if stripeSettings and stripeSettings.enabled then
-			local bgGradient = ApplyStripePattern(Window, stripeSettings)
-			if bgGradient and stripeSettings.animated then
-				StartGradientAnimation(Window, bgGradient, stripeSettings.speed or 0.1)
-			end
+			-- Aplicar Stripe Gradient (franjas repetidas)
+			ApplyStripeGradient(Window, stripeSettings)
+		elseif backgroundGradient and typeof(backgroundGradient) == "table" and #backgroundGradient >= 2 then
+			-- Aplicar degradado simple (2-3 colores)
+			ApplySimpleGradient(Window, backgroundGradient, options.background_rotation or 0)
 		else
-			-- Comportamiento original si no hay stripes
+			-- Color sólido tradicional
+			Window.ImageColor3 = options.background_color or Color3.fromRGB(35, 35, 40)
+			Window.ImageTransparency = options.background_transparency or 0.2
+		end
+		
+		-- ============================================
+		-- BARRA SUPERIOR
+		-- ============================================
+		if barStripeSettings and barStripeSettings.enabled then
+			-- Aplicar Stripe Gradient a la barra
+			ApplyStripeGradient(Bar, barStripeSettings)
+			ApplyStripeGradient(Base, barStripeSettings)
+			ApplyStripeGradient(Top, barStripeSettings)
+		elseif barGradient and typeof(barGradient) == "table" and #barGradient >= 2 then
+			-- Aplicar degradado simple a la barra
+			ApplySimpleGradient(Bar, barGradient, options.bar_rotation or 0)
+			ApplySimpleGradient(Base, barGradient, options.bar_rotation or 0)
+			ApplySimpleGradient(Top, barGradient, options.bar_rotation or 0)
+		else
+			-- Color sólido para la barra
 			spawn(function()
-				while true do
+				while Window and Window.Parent do
 					Bar.BackgroundColor3 = options.main_color
 					Base.BackgroundColor3 = options.main_color
 					Base.ImageColor3 = options.main_color
 					Top.ImageColor3 = options.main_color
-					SplitFrame.BackgroundColor3 = options.main_color
-					RS.Heartbeat:Wait()
-				end
-			end)
-		end
-		
-		-- Aplicar Stripe Gradient a la Barra Superior
-		if barStripeSettings and barStripeSettings.enabled then
-			local barGradient = ApplyStripePattern(Bar, barStripeSettings)
-			ApplyStripePattern(Base, barStripeSettings)
-			ApplyStripePattern(Top, barStripeSettings)
-			
-			if barGradient and barStripeSettings.animated then
-				StartGradientAnimation(Bar, barGradient, barStripeSettings.speed or 0.1)
-			end
-		else
-			-- Color sólido para la barra si no hay stripes
-			spawn(function()
-				while true do
-					if not (barStripeSettings and barStripeSettings.enabled) then
-						Bar.BackgroundColor3 = options.main_color
-						Base.BackgroundColor3 = options.main_color
-						Base.ImageColor3 = options.main_color
-						Top.ImageColor3 = options.main_color
-					end
 					RS.Heartbeat:Wait()
 				end
 			end)
