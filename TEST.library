@@ -1,5 +1,5 @@
 -- ============================================================
--- KOD STUDIO LIBRARY - CON STRIPE GRADIENT SYSTEM
+-- KOD STUDIO LIBRARY - CON STRIPE GRADIENT SYSTEM (CORREGIDA)
 -- Todos los colores son configurables externamente
 -- ============================================================
 
@@ -908,7 +908,7 @@ local function GetStripeColors(settings)
 end
 
 -- ============================================================
--- FUNCIÓN PARA APLICAR STRIPE GRADIENT A UN ELEMENTO
+-- FUNCIÓN PARA APLICAR STRIPE GRADIENT A UN ELEMENTO (CORREGIDA)
 -- ============================================================
 local function ApplyStripeGradient(element, settings)
 	if not element or not settings then return end
@@ -924,6 +924,9 @@ local function ApplyStripeGradient(element, settings)
 	local colors = GetStripeColors(settings)
 	if not colors or #colors < 2 then return end
 	
+	-- Limitar a máximo 5 colores para evitar errores de Roblox
+	local maxColors = math.min(#colors, 5)
+	
 	-- Crear UIGradient
 	local gradient = Instance.new("UIGradient")
 	gradient.Parent = element
@@ -938,25 +941,44 @@ local function ApplyStripeGradient(element, settings)
 		gradient.Transparency = NumberSequence.new(0)
 	end
 	
-	-- Construir ColorSequence con franjas repetidas
+	-- Construir ColorSequence optimizado
 	local keyPoints = {}
-	local numRepeats = settings.count or 3
-	local segmentSize = 1 / numRepeats
+	local numStripes = math.min(settings.count or 3, 3) -- Máximo 3 repeticiones
 	
-	for i = 0, numRepeats - 1 do
-		local offset = i * segmentSize
-		for j, color in ipairs(colors) do
-			local pos = offset + ((j - 1) / (#colors - 1)) * segmentSize
-			table.insert(keyPoints, ColorSequenceKeypoint.new(pos, color))
+	for i = 1, numStripes do
+		local segmentStart = (i - 1) / numStripes
+		local segmentEnd = i / numStripes
+		
+		-- Agregar colores en cada segmento
+		for j = 1, maxColors do
+			local t = (j - 1) / (maxColors - 1)
+			local pos = segmentStart + t * (segmentEnd - segmentStart)
+			pos = math.clamp(pos, 0, 1)
+			table.insert(keyPoints, ColorSequenceKeypoint.new(pos, colors[j]))
 		end
 	end
 	
 	-- Asegurar punto final
 	table.insert(keyPoints, ColorSequenceKeypoint.new(1, colors[#colors]))
 	
-	gradient.Color = ColorSequence.new(keyPoints)
+	-- Ordenar keypoints
+	table.sort(keyPoints, function(a, b)
+		return a.Position < b.Position
+	end)
 	
-	-- CRÍTICO: Hacer el elemento BLANCO para que el gradiente se vea bien
+	-- Eliminar duplicados cercanos
+	local cleanPoints = {}
+	local lastPos = -1
+	for _, kp in ipairs(keyPoints) do
+		if kp.Position - lastPos > 0.01 then
+			table.insert(cleanPoints, kp)
+			lastPos = kp.Position
+		end
+	end
+	
+	gradient.Color = ColorSequence.new(cleanPoints)
+	
+	-- Hacer elemento blanco
 	if element:IsA("ImageLabel") or element:IsA("ImageButton") then
 		element.ImageColor3 = Color3.new(1, 1, 1)
 		element.ImageTransparency = settings.transparency or 0
@@ -995,14 +1017,21 @@ local function ApplySimpleGradient(element, colors, rotation)
 		end
 	end
 	
+	-- Limitar colores
+	local maxColors = math.min(#colors, 5)
+	local cleanColors = {}
+	for i = 1, maxColors do
+		table.insert(cleanColors, colors[i])
+	end
+	
 	local gradient = Instance.new("UIGradient")
 	gradient.Parent = element
 	gradient.Rotation = rotation or 0
 	
 	-- Construir ColorSequence
 	local keyPoints = {}
-	for i, color in ipairs(colors) do
-		local pos = (i - 1) / (#colors - 1)
+	for i, color in ipairs(cleanColors) do
+		local pos = (i - 1) / (#cleanColors - 1)
 		table.insert(keyPoints, ColorSequenceKeypoint.new(pos, color))
 	end
 	
@@ -1129,11 +1158,9 @@ function library:AddWindow(title, options)
 	options = (typeof(options) == "table") and options or ui_options
 	options.tween_time = 0.1
 	
-	-- Configuraciones de Stripe Gradient
+	-- Configuraciones
 	local stripeSettings = options.stripe_gradient
 	local barStripeSettings = options.bar_stripe_gradient
-	
-	-- Configuraciones de degradado simple (2-3 colores)
 	local backgroundGradient = options.background_gradient
 	local barGradient = options.bar_gradient
 
@@ -1155,36 +1182,26 @@ function library:AddWindow(title, options)
 		local SplitFrame = Window:FindFirstChild("TabSelection"):FindFirstChild("Frame")
 		local Toggle = Bar:FindFirstChild("Toggle")
 
-		-- ============================================
 		-- FONDO DE LA VENTANA
-		-- ============================================
 		if stripeSettings and stripeSettings.enabled then
-			-- Aplicar Stripe Gradient (franjas repetidas)
 			ApplyStripeGradient(Window, stripeSettings)
 		elseif backgroundGradient and typeof(backgroundGradient) == "table" and #backgroundGradient >= 2 then
-			-- Aplicar degradado simple (2-3 colores)
 			ApplySimpleGradient(Window, backgroundGradient, options.background_rotation or 0)
 		else
-			-- Color sólido tradicional
 			Window.ImageColor3 = options.background_color or Color3.fromRGB(35, 35, 40)
 			Window.ImageTransparency = options.background_transparency or 0.2
 		end
 		
-		-- ============================================
 		-- BARRA SUPERIOR
-		-- ============================================
 		if barStripeSettings and barStripeSettings.enabled then
-			-- Aplicar Stripe Gradient a la barra
 			ApplyStripeGradient(Bar, barStripeSettings)
 			ApplyStripeGradient(Base, barStripeSettings)
 			ApplyStripeGradient(Top, barStripeSettings)
 		elseif barGradient and typeof(barGradient) == "table" and #barGradient >= 2 then
-			-- Aplicar degradado simple a la barra
 			ApplySimpleGradient(Bar, barGradient, options.bar_rotation or 0)
 			ApplySimpleGradient(Base, barGradient, options.bar_rotation or 0)
 			ApplySimpleGradient(Top, barGradient, options.bar_rotation or 0)
 		else
-			-- Color sólido para la barra
 			spawn(function()
 				while Window and Window.Parent do
 					Bar.BackgroundColor3 = options.main_color
@@ -1364,26 +1381,20 @@ function library:AddWindow(title, options)
 				end
 
 				do -- Tab Elements
-
 					function tab_data:AddLabel(label_text)
 						label_text = tostring(label_text or "New Label")
-
 						local label = Prefabs:FindFirstChild("Label"):Clone()
-
 						label.Parent = new_tab
 						label.Text = label_text
 						label.Size = UDim2.new(0, gNameLen(label), 0, 20)
 						label.ZIndex = label.ZIndex + (windows * 10)
-
 						return label
 					end
 
 					function tab_data:AddButton(button_text, callback)
 						button_text = tostring(button_text or "New Button")
 						callback = typeof(callback) == "function" and callback or function()end
-
 						local button = Prefabs:FindFirstChild("Button"):Clone()
-
 						button.Parent = new_tab
 						button.Text = button_text
 						button.Size = UDim2.new(0, gNameLen(button), 0, 20)
@@ -1409,15 +1420,11 @@ function library:AddWindow(title, options)
 
 					function tab_data:AddSwitch(switch_text, callback)
 						local switch_data = {}
-
 						switch_text = tostring(switch_text or "New Switch")
 						callback = typeof(callback) == "function" and callback or function()end
-
 						local switch = Prefabs:FindFirstChild("Switch"):Clone()
-
 						switch.Parent = new_tab
 						switch:FindFirstChild("Title").Text = switch_text
-
 						switch:FindFirstChild("Title").ZIndex = switch:FindFirstChild("Title").ZIndex + (windows * 10)
 						switch.ZIndex = switch.ZIndex + (windows * 10)
 						switch:GetChildren()[1].ZIndex = switch:GetChildren()[1].ZIndex + (windows * 10)
@@ -1451,12 +1458,8 @@ function library:AddWindow(title, options)
 						textbox_text = tostring(textbox_text or "New TextBox")
 						callback = typeof(callback) == "function" and callback or function()end
 						textbox_options = typeof(textbox_options) == "table" and textbox_options or {["clear"] = true}
-						textbox_options = {
-							["clear"] = ((textbox_options.clear) == true)
-						}
-
+						textbox_options = {["clear"] = ((textbox_options.clear) == true)}
 						local textbox = Prefabs:FindFirstChild("TextBox"):Clone()
-
 						textbox.Parent = new_tab
 						textbox.PlaceholderText = textbox_text
 						textbox.ZIndex = textbox.ZIndex + (windows * 10)
@@ -1478,7 +1481,6 @@ function library:AddWindow(title, options)
 
 					function tab_data:AddSlider(slider_text, callback, slider_options)
 						local slider_data = {}
-
 						slider_text = tostring(slider_text or "New Slider")
 						callback = typeof(callback) == "function" and callback or function()end
 						slider_options = typeof(slider_options) == "table" and slider_options or {}
@@ -1489,7 +1491,6 @@ function library:AddWindow(title, options)
 						}
 
 						local slider = Prefabs:FindFirstChild("Slider"):Clone()
-
 						slider.Parent = new_tab
 						slider.ZIndex = slider.ZIndex + (windows * 10)
 
@@ -1526,7 +1527,6 @@ function library:AddWindow(title, options)
 
 												local min = 0
 												local max = 1
-
 												local size = min
 												if x >= min and x <= max then
 													size = x
@@ -1585,13 +1585,10 @@ function library:AddWindow(title, options)
 
 					function tab_data:AddKeybind(keybind_name, callback, keybind_options)
 						local keybind_data = {}
-
 						keybind_name = tostring(keybind_name or "New Keybind")
 						callback = typeof(callback) == "function" and callback or function()end
 						keybind_options = typeof(keybind_options) == "table" and keybind_options or {}
-						keybind_options = {
-							["standard"] = keybind_options.standard or Enum.KeyCode.RightShift,
-						}
+						keybind_options = {["standard"] = keybind_options.standard or Enum.KeyCode.RightShift}
 
 						local keybind = Prefabs:FindFirstChild("Keybind"):Clone()
 						local input = keybind:FindFirstChild("Input")
@@ -1687,7 +1684,6 @@ function library:AddWindow(title, options)
 								Resize(box, {Size = UDim2.new(1, 0, 0, 0)}, options.tween_time)
 								Resize(indicator, {Rotation = -90}, options.tween_time)
 							end
-
 						end)
 
 						function dropdown_data:Add(n)
@@ -1695,7 +1691,6 @@ function library:AddWindow(title, options)
 							n = tostring(n or "New Object")
 
 							local object = Prefabs:FindFirstChild("DropdownButton"):Clone()
-
 							object.Parent = objects
 							object.Text = n
 							object.ZIndex = object.ZIndex + (windows * 10)
@@ -1742,7 +1737,6 @@ function library:AddWindow(title, options)
 						callback = typeof(callback) == "function" and callback or function()end
 
 						local color_picker = Prefabs:FindFirstChild("ColorPicker"):Clone()
-
 						color_picker.Parent = new_tab
 						color_picker.ZIndex = color_picker.ZIndex + (windows * 10)
 
@@ -1802,7 +1796,6 @@ function library:AddWindow(title, options)
 									spawn(function()
 										while Held and Entered1 and (not dropdown_open) do
 											local mouse_location = gMouse()
-
 											local x = ((palette.AbsoluteSize.X - (mouse_location.X - palette.AbsolutePosition.X)) + 1)
 											local y = ((palette.AbsoluteSize.Y - (mouse_location.Y - palette.AbsolutePosition.Y)) + 1.5)
 
@@ -1849,8 +1842,7 @@ function library:AddWindow(title, options)
 
 					function tab_data:AddConsole(console_options)
 						local console_data = {}
-
-						console_options = typeof(console_options) == "table" and console_options or {["readonly"] = true,["full"] = false,}
+						console_options = typeof(console_options) == "table" and console_options or {["readonly"] = true,["full"] = false}
 						console_options = {
 							["y"] = tonumber(console_options.y) or 200,
 							["source"] = console_options.source or "Logs",
@@ -1859,7 +1851,6 @@ function library:AddWindow(title, options)
 						}
 
 						local console = Prefabs:FindFirstChild("Console"):Clone()
-
 						console.Parent = new_tab
 						console.ZIndex = console.ZIndex + (windows * 10)
 						console.Size = UDim2.new(1, 0, console_options.full and 1 or 0, console_options.y)
@@ -1879,271 +1870,117 @@ function library:AddWindow(title, options)
 						end
 						Source.Comments.ZIndex = Source.Comments.ZIndex + 1
 
-						do
-							local lua_keywords = {"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"}
-							local global_env = {"getrawmetatable", "newcclosure", "islclosure", "setclipboard", "game", "workspace", "script", "math", "string", "table", "print", "wait", "BrickColor", "Color3", "next", "pairs", "ipairs", "select", "unpack", "Instance", "Vector2", "Vector3", "CFrame", "Ray", "UDim2", "Enum", "assert", "error", "warn", "tick", "loadstring", "_G", "shared", "getfenv", "setfenv", "newproxy", "setmetatable", "getmetatable", "os", "debug", "pcall", "ypcall", "xpcall", "rawequal", "rawset", "rawget", "tonumber", "tostring", "type", "typeof", "_VERSION", "coroutine", "delay", "require", "spawn", "LoadLibrary", "settings", "stats", "time", "UserSettings", "version", "Axes", "ColorSequence", "Faces", "ColorSequenceKeypoint", "NumberRange", "NumberSequence", "NumberSequenceKeypoint", "gcinfo", "elapsedTime", "collectgarbage", "PhysicalProperties", "Rect", "Region3", "Region3int16", "UDim", "Vector2int16", "Vector3int16", "load", "fire", "Fire"}
+						local lua_keywords = {"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"}
+						local global_env = {"getrawmetatable", "newcclosure", "islclosure", "setclipboard", "game", "workspace", "script", "math", "string", "table", "print", "wait", "BrickColor", "Color3", "next", "pairs", "ipairs", "select", "unpack", "Instance", "Vector2", "Vector3", "CFrame", "Ray", "UDim2", "Enum", "assert", "error", "warn", "tick", "loadstring", "_G", "shared", "getfenv", "setfenv", "newproxy", "setmetatable", "getmetatable", "os", "debug", "pcall", "ypcall", "xpcall", "rawequal", "rawset", "rawget", "tonumber", "tostring", "type", "typeof", "_VERSION", "coroutine", "delay", "require", "spawn", "LoadLibrary", "settings", "stats", "time", "UserSettings", "version"}
 
-							local Highlight = function(string, keywords)
-								local K = {}
-								local S = string
-								local Token =
-									{
-									["="] = true,
-									["."] = true,
-									[","] = true,
-									["("] = true,
-									[")"] = true,
-									["["] = true,
-									["]"] = true,
-									["{"] = true,
-									["}"] = true,
-									[":"] = true,
-									["*"] = true,
-									["/"] = true,
-									["+"] = true,
-									["-"] = true,
-									["%"] = true,
-									[";"] = true,
-									["~"] = true
-								}
-								for i, v in pairs(keywords) do
-									K[v] = true
-								end
-								S = S:gsub(".", function(c)
-									if Token[c] ~= nil then
-										return "\32"
-									else
-										return c
-									end
-								end)
-								S = S:gsub("%S+", function(c)
-									if K[c] ~= nil then
-										return c
-									else
-										return (" "):rep(#c)
-									end
-								end)
-
-								return S
-							end
-
-							local hTokens = function(string)
-								local Token =
-									{
-									["="] = true,
-									["."] = true,
-									[","] = true,
-									["("] = true,
-									[")"] = true,
-									["["] = true,
-									["]"] = true,
-									["{"] = true,
-									["}"] = true,
-									[":"] = true,
-									["*"] = true,
-									["/"] = true,
-									["+"] = true,
-									["-"] = true,
-									["%"] = true,
-									[";"] = true,
-									["~"] = true
-								}
-								local A = ""
-								string:gsub(".", function(c)
-									if Token[c] ~= nil then
-										A = A .. c
-									elseif c == "\n" then
-										A = A .. "\n"
-									elseif c == "\t" then
-										A = A .. "\t"
-									else
-										A = A .. "\32"
-									end
-								end)
-
-								return A
-							end
-
-							local strings = function(string)
-								local highlight = ""
-								local quote = false
-								string:gsub(".", function(c)
-									if quote == false and c == "\34" then
-										quote = true
-									elseif quote == true and c == "\34" then
-										quote = false
-									end
-									if quote == false and c == "\34" then
-										highlight = highlight .. "\34"
-									elseif c == "\n" then
-										highlight = highlight .. "\n"
-									elseif c == "\t" then
-										highlight = highlight .. "\t"
-									elseif quote == true then
-										highlight = highlight .. c
-									elseif quote == false then
-										highlight = highlight .. "\32"
-									end
-								end)
-
-								return highlight
-							end
-
-							local info = function(string)
-								local highlight = ""
-								local quote = false
-								string:gsub(".", function(c)
-									if quote == false and c == "[" then
-										quote = true
-									elseif quote == true and c == "]" then
-										quote = false
-									end
-									if quote == false and c == "\]" then
-										highlight = highlight .. "\]"
-									elseif c == "\n" then
-										highlight = highlight .. "\n"
-									elseif c == "\t" then
-										highlight = highlight .. "\t"
-									elseif quote == true then
-										highlight = highlight .. c
-									elseif quote == false then
-										highlight = highlight .. "\32"
-									end
-								end)
-
-								return highlight
-							end
-
-							local comments = function(string)
-								local ret = ""
-								string:gsub("[^\r\n]+", function(c)
-									local comm = false
-									local i = 0
-									c:gsub(".", function(n)
-										i = i + 1
-										if c:sub(i, i + 1) == "--" then
-											comm = true
-										end
-										if comm == true then
-											ret = ret .. n
-										else
-											ret = ret .. "\32"
-										end
-									end)
-									ret = ret
-								end)
-
-								return ret
-							end
-
-							local numbers = function(string)
-								local A = ""
-								string:gsub(".", function(c)
-									if tonumber(c) ~= nil then
-										A = A .. c
-									elseif c == "\n" then
-										A = A .. "\n"
-									elseif c == "\t" then
-										A = A .. "\t"
-									else
-										A = A .. "\32"
-									end
-								end)
-
-								return A
-							end
-
-							local highlight_lua = function(type)
-								if type == "Text" then
-									Source.Text = Source.Text:gsub("\13", "")
-									Source.Text = Source.Text:gsub("\t", "      ")
-									local s = Source.Text
-
-									Source.Keywords.Text = Highlight(s, lua_keywords)
-									Source.Globals.Text = Highlight(s, global_env)
-									Source.RemoteHighlight.Text = Highlight(s, {"FireServer", "fireServer", "InvokeServer", "invokeServer"})
-									Source.Tokens.Text = hTokens(s)
-									Source.Numbers.Text = numbers(s)
-									Source.Strings.Text = strings(s)
-									Source.Comments.Text = comments(s)
-
-									local lin = 1
-									s:gsub("\n", function()
-										lin = lin + 1
-									end)
-
-									Lines.Text = ""
-									for i = 1, lin do
-										Lines.Text = Lines.Text .. i .. "\n"
-									end
-
-									sf.CanvasSize = UDim2.new(0, 0, lin * 0.153846154, 0)
-								end
-
-								local highlight_logs = function(type)
-								end
-								if type == "Text" then
-									Source.Text = Source.Text:gsub("\13", "")
-									Source.Text = Source.Text:gsub("\t", "      ")
-									local s = Source.Text
-
-									Source.Info.Text = info(s)
-
-									local lin = 1
-									s:gsub("\n", function()
-										lin = lin + 1
-									end)
-
-									sf.CanvasSize = UDim2.new(0, 0, lin * 0.153846154, 0)
-								end
-							end
-
-							if console_options.source == "Lua" then
-								highlight_lua("Text")
-								Source.Changed:Connect(highlight_lua)
-							elseif console_options.source == "Logs" then
-								Lines.Visible = false
-
-								highlight_logs("Text")
-								Source.Changed:Connect(highlight_logs)
-							end
-
-							function console_data:Set(code)
-								Source.Text = tostring(code)
-							end
-
-							function console_data:Get()
-								return Source.Text
-							end
-
-							function console_data:Log(msg)
-								Source.Text = Source.Text .. "[*] " .. tostring(msg) .. "\n"
-							end
-
+						local Highlight = function(string, keywords)
+							local K = {}
+							local S = string
+							local Token = {["="] = true,["."] = true,[","] = true,["("] = true,[")"] = true,["["] = true,["]"] = true,["{"] = true,["}"] = true,[":"] = true,["*"] = true,["/"] = true,["+"] = true,["-"] = true,["%"] = true,[";"] = true,["~"] = true}
+							for i, v in pairs(keywords) do K[v] = true end
+							S = S:gsub(".", function(c)
+								if Token[c] ~= nil then return "\32" else return c end
+							end)
+							S = S:gsub("%S+", function(c)
+								if K[c] ~= nil then return c else return (" "):rep(#c) end
+							end)
+							return S
 						end
+
+						local hTokens = function(string)
+							local Token = {["="] = true,["."] = true,[","] = true,["("] = true,[")"] = true,["["] = true,["]"] = true,["{"] = true,["}"] = true,[":"] = true,["*"] = true,["/"] = true,["+"] = true,["-"] = true,["%"] = true,[";"] = true,["~"] = true}
+							local A = ""
+							string:gsub(".", function(c)
+								if Token[c] ~= nil then A = A .. c
+								elseif c == "\n" then A = A .. "\n"
+								elseif c == "\t" then A = A .. "\t"
+								else A = A .. "\32" end
+							end)
+							return A
+						end
+
+						local strings = function(string)
+							local highlight = ""
+							local quote = false
+							string:gsub(".", function(c)
+								if quote == false and c == "\34" then quote = true
+								elseif quote == true and c == "\34" then quote = false end
+								if quote == false and c == "\34" then highlight = highlight .. "\34"
+								elseif c == "\n" then highlight = highlight .. "\n"
+								elseif c == "\t" then highlight = highlight .. "\t"
+								elseif quote == true then highlight = highlight .. c
+								elseif quote == false then highlight = highlight .. "\32" end
+							end)
+							return highlight
+						end
+
+						local comments = function(string)
+							local ret = ""
+							string:gsub("[^\r\n]+", function(c)
+								local comm = false
+								local i = 0
+								c:gsub(".", function(n)
+									i = i + 1
+									if c:sub(i, i + 1) == "--" then comm = true end
+									if comm == true then ret = ret .. n else ret = ret .. "\32" end
+								end)
+							end)
+							return ret
+						end
+
+						local numbers = function(string)
+							local A = ""
+							string:gsub(".", function(c)
+								if tonumber(c) ~= nil then A = A .. c
+								elseif c == "\n" then A = A .. "\n"
+								elseif c == "\t" then A = A .. "\t"
+								else A = A .. "\32" end
+							end)
+							return A
+						end
+
+						local highlight_lua = function(type)
+							if type == "Text" then
+								Source.Text = Source.Text:gsub("\13", "")
+								Source.Text = Source.Text:gsub("\t", "      ")
+								local s = Source.Text
+								Source.Keywords.Text = Highlight(s, lua_keywords)
+								Source.Globals.Text = Highlight(s, global_env)
+								Source.Tokens.Text = hTokens(s)
+								Source.Numbers.Text = numbers(s)
+								Source.Strings.Text = strings(s)
+								Source.Comments.Text = comments(s)
+
+								local lin = 1
+								s:gsub("\n", function() lin = lin + 1 end)
+								Lines.Text = ""
+								for i = 1, lin do Lines.Text = Lines.Text .. i .. "\n" end
+								sf.CanvasSize = UDim2.new(0, 0, lin * 0.153846154, 0)
+							end
+						end
+
+						if console_options.source == "Lua" then
+							highlight_lua("Text")
+							Source.Changed:Connect(highlight_lua)
+						end
+
+						function console_data:Set(code) Source.Text = tostring(code) end
+						function console_data:Get() return Source.Text end
+						function console_data:Log(msg) Source.Text = Source.Text .. "[*] " .. tostring(msg) .. "\n" end
 
 						return console_data, console
 					end
 
 					function tab_data:AddHorizontalAlignment()
 						local ha_data = {}
-
 						local ha = Prefabs:FindFirstChild("HorizontalAlignment"):Clone()
 						ha.Parent = new_tab
 
 						function ha_data:AddButton(...)
-							local data, object
 							local ret = {tab_data:AddButton(...)}
-							if typeof(ret[1]) == "table" then
-								data = ret[1]
-								object = ret[2]
-								object.Parent = ha
-								return data, object
-							else
-								object = ret[1]
-								object.Parent = ha
-								return object
-							end
+							local obj = ret[#ret]
+							obj.Parent = ha
+							return table.unpack(ret)
 						end
 
 						return ha_data, ha
@@ -2151,7 +1988,6 @@ function library:AddWindow(title, options)
 
 					function tab_data:AddFolder(folder_name)
 						local folder_data = {}
-
 						folder_name = tostring(folder_name or "New Folder")
 
 						local folder = Prefabs:FindFirstChild("Folder"):Clone()
@@ -2195,7 +2031,6 @@ function library:AddWindow(title, options)
 								Resize(toggle, {Rotation = 90}, options.tween_time)
 								objects.Visible = true
 							end
-
 							open = not open
 						end)
 
@@ -2208,24 +2043,15 @@ function library:AddWindow(title, options)
 
 						for i,v in next, tab_data do
 							folder_data[i] = function(...)
-								local data, object
 								local ret = {v(...)}
-								if typeof(ret[1]) == "table" then
-									data = ret[1]
-									object = ret[2]
-									object.Parent = objects
-									return data, object
-								else
-									object = ret[1]
-									object.Parent = objects
-									return object
-								end
+								local obj = ret[#ret]
+								obj.Parent = objects
+								return table.unpack(ret)
 							end
 						end
 
 						return folder_data, folder
 					end
-
 				end
 
 				return tab_data, new_tab
