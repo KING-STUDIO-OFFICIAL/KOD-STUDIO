@@ -757,7 +757,7 @@ function KODlib:MakeWindow(Configs)
         Position = UDim2.new(0, 0, 0.5),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
-        Image = "rbxassetid://84670705287911",
+        Image = "rbxassetid://95103720591784",
         ImageColor3 = Theme["Color Text"],
         Name = "MinimizedIcon"
     })
@@ -3038,7 +3038,7 @@ function KODlib:MakeWindow(Configs)
         ToggleButton.Name = "ToggleButton"
         ToggleButton.Size = UDim2.new(0, 50, 0, 50)
         ToggleButton.Position = UDim2.new(0.12, 0, 0.12, 0)
-        ToggleButton.Image = "rbxassetid://84670705287911"
+        ToggleButton.Image = "rbxassetid://95103720591784"
         ToggleButton.BackgroundColor3 = Theme["Color Hub 2"]
         ToggleButton.BackgroundTransparency = 0.2
         ToggleButton.Active = true
@@ -3057,7 +3057,7 @@ function KODlib:MakeWindow(Configs)
         Flag.Name = "VNFlagIcon"
         Flag.Parent = ToggleButton
         Flag.BackgroundTransparency = 1
-        Flag.Image = "rbxassetid://123035506495251"
+        Flag.Image = "rbxassetid://134118410117592"
         Flag.Size = UDim2.fromOffset(28, 18)
         Flag.AnchorPoint = Vector2.new(0.5, 0.5)
         Flag.Position = UDim2.new(1, -2, 0, 2)
@@ -3186,7 +3186,7 @@ local function CreateNotification(Icon, Title, Message, Duration)
     IconImage.Size = UDim2.new(1, 0, 1, 0)
     IconImage.BackgroundTransparency = 1
     IconImage.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    IconImage.Image = Icon or "rbxassetid://84670705287911"
+    IconImage.Image = Icon or "rbxassetid://95103720591784"
     IconImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
     IconImage.ScaleType = Enum.ScaleType.Fit
     IconImage.BorderSizePixel = 0
@@ -3320,7 +3320,7 @@ end
 function KODlib:Notify(Configs)
     local Title = Configs.Title or Configs[1] or "KOD Hub"
     local Message = Configs.Message or Configs[2] or Configs.Text or ""
-    local Icon = Configs.Icon or "rbxassetid://84670705287911"
+    local Icon = Configs.Icon or "rbxassetid://95103720591784"
     local Duration = Configs.Duration or Configs.Time or 5
     
     table.insert(NotificationQueue, {
