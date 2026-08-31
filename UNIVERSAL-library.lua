@@ -3283,6 +3283,8 @@ local function CreateNotification(Icon, Title, Message, Duration)
         ProcessNotificationQueue()
     end
     
+    KODlib._closeNotification = closeNotification
+    
     timerConnection = RunService.Heartbeat:Connect(function(dt)
         if not countdownActive or closed or not Notification or not Notification.Parent then
             if timerConnection then
@@ -3296,7 +3298,9 @@ local function CreateNotification(Icon, Title, Message, Duration)
         updateTimerDisplay()
         
         if timeLeft <= 0 then
-            closeNotification()
+            if type(KODlib._closeNotification) == "function" then
+                KODlib._closeNotification()
+            end
         end
     end)
     
