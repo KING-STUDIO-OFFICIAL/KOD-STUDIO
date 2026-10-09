@@ -34,6 +34,8 @@ Library.ColorPresets = {
     Rainbow = "rainbow",
 }
 
+Library.ColorPresetOrder = { "Purple", "Pink", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "White", "Rainbow" }
+
 Library.Options = {}
 Library.Toggles = {}
 Library.Tabs = {}
@@ -52,7 +54,13 @@ Library.Unloaded = false
 Library.ShowCustomCursor = false
 Library.IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 Library.ToggleKeybind = nil
+Library.OnUnloadCallback = nil
+Library.NotificationsEnabled = true
 Library.NotifySide = "Right"
+Library.Version = "1.0.0"
+Library.DefaultWindowSize = UDim2.fromOffset(320, 560)
+Library.MinWindowSize = Vector2.new(300, 400)
+Library.MaxWindowSize = Vector2.new(700, 900)
 
 local State = {
     Windows = {},
@@ -112,55 +120,52 @@ function Library:SetColorPreset(presetName)
 end
 
 function Library:RefreshAllColors()
-    pcall(function()
-        local color = Library:GetActiveColor()
-        for _, win in ipairs(State.Windows) do
-            if win.MainStroke then win.MainStroke.Color = color end
-            if win.OpenStroke then win.OpenStroke.Color = color end
-            if win.CreditsStroke then win.CreditsStroke.Color = color end
-            if win.MinStroke then win.MinStroke.Color = color end
-            if win.TitleGlowFrame then win.TitleGlowFrame.BackgroundColor3 = color end
-            if win.GripCorner then win.GripCorner.BackgroundColor3 = color end
-            for _, tab in ipairs(win.Tabs or {}) do
-                if tab.Button and tab.Button:GetAttribute("Active") then
-                    tab.Button.BackgroundColor3 = color
-                end
+    local color = Library:GetActiveColor()
+    for _, win in ipairs(State.Windows) do
+        if win.MainStroke then win.MainStroke.Color = color end
+        if win.OpenStroke then win.OpenStroke.Color = color end
+        if win.CreditsStroke then win.CreditsStroke.Color = color end
+        if win.MinStroke then win.MinStroke.Color = color end
+        if win.TitleGlowFrame then win.TitleGlowFrame.BackgroundColor3 = color end
+        if win.GripCorner then win.GripCorner.BackgroundColor3 = color end
+        for _, tab in ipairs(win.Tabs) do
+            if tab.Button and tab.Button:GetAttribute("Active") then
+                tab.Button.BackgroundColor3 = color
             end
         end
-        for _, toggle in pairs(Library.Toggles) do
-            if toggle.Holder and toggle.Value then
-                toggle.Holder.BackgroundColor3 = color
-            end
+    end
+    for _, toggle in pairs(Library.Toggles) do
+        if toggle.Holder and toggle.Value then
+            toggle.Holder.BackgroundColor3 = color
         end
-        for _, group in pairs(Library.Groups) do
-            if group.Stroke then group.Stroke.Color = color end
-        end
-        for _, slider in pairs(Library.Sliders) do
-            if slider.Fill then slider.Fill.BackgroundColor3 = color end
-            if slider.Knob then slider.Knob.BackgroundColor3 = color end
-        end
-        Library:UpdateParticleColors()
-    end)
+    end
+    for _, group in pairs(Library.Groups) do
+        if group.Stroke then group.Stroke.Color = color end
+    end
+    for _, slider in pairs(Library.Sliders) do
+        if slider.Fill then slider.Fill.BackgroundColor3 = color end
+        if slider.Knob then slider.Knob.BackgroundColor3 = color end
+    end
+    Library:UpdateParticleColors()
 end
 
 function Library:UpdateParticleColors()
-    pcall(function()
-        for _, win in ipairs(State.Windows) do
-            if win.Particles then
-                local color = Library:GetActiveColor()
-                for _, p in ipairs(win.Particles) do
-                    if p and p.Parent then
-                        p.BackgroundColor3 = color
-                        local glow = p:FindFirstChild("Glow")
-                        if glow then glow.BackgroundColor3 = color end
-                    end
+    for _, win in ipairs(State.Windows) do
+        if win.Particles then
+            local color = Library:GetActiveColor()
+            for _, p in ipairs(win.Particles) do
+                if p and p.Parent then
+                    p.BackgroundColor3 = color
+                    local glow = p:FindFirstChild("Glow")
+                    if glow then glow.BackgroundColor3 = color end
                 end
             end
         end
-    end)
+    end
 end
 
 function Library:Notify(data)
+    if not Library.NotificationsEnabled then return end
     data = data or {}
     local Title = data.Title or "Notification"
     local Description = data.Description or data.Text or data.Content or ""
@@ -366,8 +371,8 @@ function Library:CreateWindow(config)
     local Title = config.Title or "Window"
     local Subtitle = config.Subtitle or ""
     local Footer = config.Footer or ""
-    local DefaultWidth = config.Size and config.Size.X.Offset or 340
-    local DefaultHeight = config.Size and config.Size.Y.Offset or 520
+    local DefaultWidth = config.Size and config.Size.X.Offset or Library.DefaultWindowSize.X.Offset
+    local DefaultHeight = config.Size and config.Size.Y.Offset or Library.DefaultWindowSize.Y.Offset
     local Icon = config.Icon or ""
     local ParticleCount = config.Particles or 24
     local ShowCredits = (Footer ~= "" and Footer ~= nil)
@@ -386,10 +391,32 @@ function Library:CreateWindow(config)
         ScreenGui.Parent = CoreGui
     end
 
+    local OpenButton = Instance.new("ImageButton")
+    OpenButton.Name = "OpenButton"
+    OpenButton.AnchorPoint = Vector2.new(0.5, 0.5)
+    OpenButton.Size = UDim2.new(0, 60, 0, 60)
+    OpenButton.Position = UDim2.new(0.1, 0, 0.1, 0)
+    OpenButton.BackgroundColor3 = Library.Scheme.Background
+    OpenButton.BorderColor3 = Library.Scheme.AccentColor
+    OpenButton.BorderSizePixel = 2
+    OpenButton.Image = Icon
+    OpenButton.Visible = false
+    OpenButton.Parent = ScreenGui
+
+    local OpenCorner = Instance.new("UICorner")
+    OpenCorner.CornerRadius = UDim.new(1, 0)
+    OpenCorner.Parent = OpenButton
+
+    local OpenStroke = Instance.new("UIStroke")
+    OpenStroke.Thickness = 2
+    OpenStroke.Color = Library.Scheme.AccentColor
+    OpenStroke.Transparency = 0.3
+    OpenStroke.Parent = OpenButton
+
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, DefaultWidth, 0, DefaultHeight)
-    MainFrame.Position = UDim2.new(0.5, -DefaultWidth / 2, 0.5, -DefaultHeight / 2)
+    MainFrame.Size = UDim2.new(0, 0, 0, 0)
+    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     MainFrame.BackgroundColor3 = Library.Scheme.Background
     MainFrame.BorderSizePixel = 0
     MainFrame.Active = true
@@ -404,8 +431,8 @@ function Library:CreateWindow(config)
 
     local MainStroke = Instance.new("UIStroke")
     MainStroke.Thickness = 2
-    MainStroke.Transparency = 0.2
-    MainStroke.Color = Library:GetActiveColor()
+    MainStroke.Transparency = 1
+    MainStroke.Color = Library.Scheme.AccentColor
     MainStroke.Parent = MainFrame
 
     local ParticleHolder, Particles = createParticleBackground(MainFrame, ParticleCount)
@@ -416,7 +443,7 @@ function Library:CreateWindow(config)
     ContentLayer.BackgroundTransparency = 1
     ContentLayer.BorderSizePixel = 0
     ContentLayer.ZIndex = 10
-    ContentLayer.Visible = true
+    ContentLayer.Visible = false
     ContentLayer.ClipsDescendants = true
     ContentLayer.Parent = MainFrame
 
@@ -425,37 +452,63 @@ function Library:CreateWindow(config)
     TitleLabel.Size = UDim2.new(1, 0, 0, 26)
     TitleLabel.Position = UDim2.new(0, 0, 0, 10)
     TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = Title
+    TitleLabel.Text = ""
     TitleLabel.Font = Enum.Font.Arcade
-    TitleLabel.TextSize = 20
+    TitleLabel.TextSize = 22
     TitleLabel.TextColor3 = Library.Scheme.Text
+    TitleLabel.TextStrokeColor3 = Library.Scheme.AccentColor
+    TitleLabel.TextStrokeTransparency = 0.3
     TitleLabel.ZIndex = 20
     TitleLabel.Parent = ContentLayer
+
+    local TitleShadow = Instance.new("TextLabel")
+    TitleShadow.Name = "TitleShadow"
+    TitleShadow.Size = UDim2.new(1, 0, 0, 26)
+    TitleShadow.Position = UDim2.new(0, 2, 0, 12)
+    TitleShadow.BackgroundTransparency = 1
+    TitleShadow.Text = ""
+    TitleShadow.Font = Enum.Font.Arcade
+    TitleShadow.TextSize = 22
+    TitleShadow.TextColor3 = Color3.fromRGB(0, 0, 0)
+    TitleShadow.TextTransparency = 0.7
+    TitleShadow.ZIndex = 19
+    TitleShadow.Parent = ContentLayer
+
+    local TitleGlowFrame = Instance.new("Frame")
+    TitleGlowFrame.Name = "TitleGlow"
+    TitleGlowFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    TitleGlowFrame.Position = UDim2.new(0.5, 0, 0, 23)
+    TitleGlowFrame.Size = UDim2.new(0, 200, 0, 26)
+    TitleGlowFrame.BackgroundColor3 = Library.Scheme.AccentColor
+    TitleGlowFrame.BackgroundTransparency = 0.85
+    TitleGlowFrame.BorderSizePixel = 0
+    TitleGlowFrame.ZIndex = 18
+    TitleGlowFrame.Parent = ContentLayer
+
+    local TitleGlowCorner = Instance.new("UICorner")
+    TitleGlowCorner.CornerRadius = UDim.new(0, 12)
+    TitleGlowCorner.Parent = TitleGlowFrame
 
     local SubtitleLabel = Instance.new("TextLabel")
     SubtitleLabel.Name = "Subtitle"
     SubtitleLabel.Size = UDim2.new(1, 0, 0, 18)
-    SubtitleLabel.Position = UDim2.new(0, 0, 0, 36)
+    SubtitleLabel.Position = UDim2.new(0, 0, 0, 38)
     SubtitleLabel.BackgroundTransparency = 1
     SubtitleLabel.Text = Subtitle
     SubtitleLabel.Font = Enum.Font.Arcade
-    SubtitleLabel.TextSize = 12
+    SubtitleLabel.TextSize = 13
     SubtitleLabel.TextColor3 = Library.Scheme.AccentLight
     SubtitleLabel.TextTransparency = 0.2
     SubtitleLabel.ZIndex = 20
     SubtitleLabel.Parent = ContentLayer
 
-    local MinimizeButton = Instance.new("TextButton")
+    local MinimizeButton = Instance.new("ImageButton")
     MinimizeButton.Name = "MinimizeButton"
     MinimizeButton.Size = UDim2.new(0, 26, 0, 26)
     MinimizeButton.Position = UDim2.new(1, -34, 0, 8)
     MinimizeButton.BackgroundColor3 = Library.Scheme.BackgroundSecondary
-    MinimizeButton.Text = "−"
-    MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    MinimizeButton.TextSize = 18
-    MinimizeButton.Font = Enum.Font.Arcade
+    MinimizeButton.Image = Icon
     MinimizeButton.BorderSizePixel = 0
-    MinimizeButton.AutoButtonColor = false
     MinimizeButton.ZIndex = 20
     MinimizeButton.Parent = ContentLayer
 
@@ -464,17 +517,17 @@ function Library:CreateWindow(config)
     MinCorner.Parent = MinimizeButton
 
     local MinStroke = Instance.new("UIStroke")
-    MinStroke.Color = Library:GetActiveColor()
+    MinStroke.Color = Library.Scheme.AccentColor
     MinStroke.Thickness = 1
     MinStroke.Transparency = 0.4
     MinStroke.Parent = MinimizeButton
 
-    local CreditsPanel, CreditsStroke
+    local CreditsPanel, CreditsStroke, CreditsLabel
     if ShowCredits then
         CreditsPanel = Instance.new("Frame")
         CreditsPanel.Name = "CreditsPanel"
-        CreditsPanel.Size = UDim2.new(1, -20, 0, 30)
-        CreditsPanel.Position = UDim2.new(0, 10, 1, -36)
+        CreditsPanel.Size = UDim2.new(1, -20, 0, 36)
+        CreditsPanel.Position = UDim2.new(0, 10, 1, -42)
         CreditsPanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
         CreditsPanel.BackgroundTransparency = 0.4
         CreditsPanel.ZIndex = 20
@@ -486,11 +539,11 @@ function Library:CreateWindow(config)
 
         CreditsStroke = Instance.new("UIStroke")
         CreditsStroke.Thickness = 2
-        CreditsStroke.Color = Library:GetActiveColor()
+        CreditsStroke.Color = Library.Scheme.AccentColor
         CreditsStroke.Transparency = 0.3
         CreditsStroke.Parent = CreditsPanel
 
-        local CreditsLabel = Instance.new("TextLabel")
+        CreditsLabel = Instance.new("TextLabel")
         CreditsLabel.Name = "CreditsLabel"
         CreditsLabel.Size = UDim2.new(1, 0, 1, 0)
         CreditsLabel.BackgroundTransparency = 1
@@ -506,7 +559,7 @@ function Library:CreateWindow(config)
     local TabBar = Instance.new("Frame")
     TabBar.Name = "TabBar"
     TabBar.Size = UDim2.new(1, -20, 0, 34)
-    TabBar.Position = UDim2.new(0, 10, 0, 60)
+    TabBar.Position = UDim2.new(0, 10, 0, 62)
     TabBar.BackgroundColor3 = Library.Scheme.BackgroundSecondary
     TabBar.BorderSizePixel = 0
     TabBar.ZIndex = 20
@@ -531,91 +584,252 @@ function Library:CreateWindow(config)
 
     local PagesFrame = Instance.new("Frame")
     PagesFrame.Name = "PagesFrame"
-    PagesFrame.Size = UDim2.new(1, -10, 1, -140)
-    PagesFrame.Position = UDim2.new(0, 5, 0, 100)
+    PagesFrame.Size = UDim2.new(1, -10, 1, -150)
+    PagesFrame.Position = UDim2.new(0, 5, 0, 104)
     PagesFrame.BackgroundTransparency = 1
     PagesFrame.ZIndex = 20
     PagesFrame.ClipsDescendants = true
     PagesFrame.Parent = ContentLayer
 
+    local ResizeGrip = Instance.new("ImageButton")
+    ResizeGrip.Name = "ResizeGrip"
+    ResizeGrip.AnchorPoint = Vector2.new(1, 1)
+    ResizeGrip.Position = UDim2.new(1, -2, 1, -2)
+    ResizeGrip.Size = UDim2.new(0, 22, 0, 22)
+    ResizeGrip.BackgroundTransparency = 1
+    ResizeGrip.BorderSizePixel = 0
+    ResizeGrip.Image = ""
+    ResizeGrip.AutoButtonColor = false
+    ResizeGrip.ZIndex = 30
+    ResizeGrip.Parent = ContentLayer
+
+    local GripCorner = Instance.new("Frame")
+    GripCorner.Name = "GripCorner"
+    GripCorner.AnchorPoint = Vector2.new(1, 1)
+    GripCorner.Position = UDim2.new(1, 0, 1, 0)
+    GripCorner.Size = UDim2.new(0, 12, 0, 12)
+    GripCorner.BackgroundColor3 = Library.Scheme.AccentColor
+    GripCorner.BorderSizePixel = 0
+    GripCorner.ZIndex = 30
+    GripCorner.Parent = ResizeGrip
+
+    local GripCornerCorner = Instance.new("UICorner")
+    GripCornerCorner.CornerRadius = UDim.new(0, 3)
+    GripCornerCorner.Parent = GripCorner
+
+    local GripLine1 = Instance.new("Frame")
+    GripLine1.AnchorPoint = Vector2.new(1, 1)
+    GripLine1.Position = UDim2.new(1, -3, 1, -3)
+    GripLine1.Size = UDim2.new(0, 6, 0, 1)
+    GripLine1.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    GripLine1.BackgroundTransparency = 0.3
+    GripLine1.BorderSizePixel = 0
+    GripLine1.ZIndex = 31
+    GripLine1.Parent = ResizeGrip
+
+    local GripLine2 = Instance.new("Frame")
+    GripLine2.AnchorPoint = Vector2.new(1, 1)
+    GripLine2.Position = UDim2.new(1, -3, 1, -3)
+    GripLine2.Size = UDim2.new(0, 1, 0, 6)
+    GripLine2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    GripLine2.BackgroundTransparency = 0.3
+    GripLine2.BorderSizePixel = 0
+    GripLine2.ZIndex = 31
+    GripLine2.Parent = ResizeGrip
+
     local windowState = {
         MainFrame = MainFrame,
         ContentLayer = ContentLayer,
         MainStroke = MainStroke,
+        OpenButton = OpenButton,
+        OpenStroke = OpenStroke,
         CreditsPanel = CreditsPanel,
         CreditsStroke = CreditsStroke,
         TitleLabel = TitleLabel,
-        SubtitleLabel = SubtitleLabel,
+        TitleShadow = TitleShadow,
+        TitleGlowFrame = TitleGlowFrame,
         TabBar = TabBar,
         PagesFrame = PagesFrame,
+        ResizeGrip = ResizeGrip,
+        GripCorner = GripCorner,
         Particles = Particles,
         ParticleHolder = ParticleHolder,
         Tabs = {},
-        IsOpen = true,
+        IsOpen = false,
         IsAnimating = false,
+        TitleAnimThread = nil,
+        TitleAnimStop = false,
+        Resizing = false,
+        ResizeStartMouse = nil,
+        ResizeStartSize = nil,
         ScreenGui = ScreenGui,
         Icon = Icon,
         Title = Title,
         DefaultWidth = DefaultWidth,
         DefaultHeight = DefaultHeight,
         ShowCredits = ShowCredits,
-        Minimized = false,
     }
 
     table.insert(State.Windows, windowState)
 
     function windowState:SetFooter(text)
-        if CreditsPanel then
-            local lbl = CreditsPanel:FindFirstChild("CreditsLabel")
-            if lbl then lbl.Text = text end
+        if CreditsLabel then
+            CreditsLabel.Text = text
         end
     end
 
     function windowState:SetTitle(text)
         self.Title = text
-        if TitleLabel then TitleLabel.Text = text end
     end
 
     function windowState:SetSubtitle(text)
-        if SubtitleLabel then SubtitleLabel.Text = text end
+        SubtitleLabel.Text = text
     end
 
-    function windowState:Minimize()
-        if not MainFrame or not MainFrame.Parent then return end
-        self.Minimized = true
-        MainFrame.Visible = false
-    end
-
-    function windowState:Restore()
-        if not MainFrame or not MainFrame.Parent then return end
-        self.Minimized = false
-        MainFrame.Visible = true
-    end
-
-    function windowState:Toggle()
-        if not MainFrame or not MainFrame.Parent then return end
-        if MainFrame.Visible then
-            self:Minimize()
-        else
-            self:Restore()
+    function windowState:StartTitleAnimation()
+        if self.TitleAnimThread then
+            self.TitleAnimStop = true
+            task.wait(0.1)
         end
+        self.TitleAnimStop = false
+        local animTitle = self.Title
+
+        self.TitleAnimThread = task.spawn(function()
+            while not self.TitleAnimStop do
+                if not self.TitleLabel or not self.TitleLabel.Parent then break end
+
+                for i = 1, #animTitle do
+                    if self.TitleAnimStop or not self.TitleLabel or not self.TitleLabel.Parent then break end
+                    local currentText = string.sub(animTitle, 1, i)
+                    if self.TitleLabel then self.TitleLabel.Text = currentText end
+                    if self.TitleShadow then self.TitleShadow.Text = currentText end
+                    if self.TitleLabel then
+                        self.TitleLabel.TextSize = 26
+                        safeTween(self.TitleLabel, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { TextSize = 22 })
+                    end
+                    if self.TitleShadow then
+                        self.TitleShadow.TextSize = 26
+                        safeTween(self.TitleShadow, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { TextSize = 22 })
+                    end
+                    if self.TitleLabel then
+                        local originalStroke = self.TitleLabel.TextStrokeColor3
+                        local flashColors = {
+                            Color3.fromRGB(255, 255, 255),
+                            Color3.fromRGB(200, 160, 255),
+                            Color3.fromRGB(255, 180, 255),
+                        }
+                        self.TitleLabel.TextStrokeColor3 = flashColors[math.random(1, 3)]
+                        safeTween(self.TitleLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextStrokeColor3 = originalStroke })
+                    end
+                    if self.TitleGlowFrame then
+                        safeTween(self.TitleGlowFrame, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { BackgroundTransparency = 0.4 })
+                        safeTween(self.TitleGlowFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), { BackgroundTransparency = 0.85 })
+                    end
+                    task.wait(0.08)
+                end
+
+                task.wait(1.5)
+
+                for i = #animTitle, 0, -1 do
+                    if self.TitleAnimStop or not self.TitleLabel or not self.TitleLabel.Parent then break end
+                    local currentText = string.sub(animTitle, 1, i)
+                    if self.TitleLabel then self.TitleLabel.Text = currentText end
+                    if self.TitleShadow then self.TitleShadow.Text = currentText end
+                    if self.TitleLabel then self.TitleLabel.TextTransparency = 0.5 end
+                    if self.TitleShadow then self.TitleShadow.TextTransparency = 0.85 end
+                    task.wait(0.04)
+                    if self.TitleLabel then self.TitleLabel.TextTransparency = 0 end
+                    if self.TitleShadow then self.TitleShadow.TextTransparency = 0.7 end
+                    task.wait(0.03)
+                end
+
+                task.wait(0.8)
+            end
+        end)
     end
 
-    windowState.Close = windowState.Minimize
-    windowState.Hide = windowState.Minimize
-    windowState.Open = windowState.Restore
-    windowState.Show = windowState.Restore
+    function windowState:Open(instant)
+        if self.IsAnimating then return end
+        if self.IsOpen and not instant then return end
+        self.IsAnimating = true
+        self.IsOpen = true
+
+        self.MainFrame.Visible = true
+        self.MainFrame.ClipsDescendants = true
+
+        if instant then
+            self.MainFrame.Size = UDim2.new(0, self.DefaultWidth, 0, self.DefaultHeight)
+            self.MainFrame.Position = UDim2.new(0.5, -self.DefaultWidth / 2, 0.5, -self.DefaultHeight / 2)
+            self.MainFrame.Rotation = 0
+            self.MainFrame.BackgroundTransparency = 0
+            if self.MainStroke then self.MainStroke.Transparency = 0.2 end
+            if self.ContentLayer then self.ContentLayer.Visible = true end
+            if self.OpenButton then self.OpenButton.Visible = false end
+            self.IsAnimating = false
+            return
+        end
+
+        self.MainFrame.Size = UDim2.new(0, 0, 0, 0)
+        self.MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+        self.MainFrame.Rotation = 180
+        self.MainFrame.BackgroundTransparency = 1
+        if self.MainStroke then self.MainStroke.Transparency = 1 end
+        if self.ContentLayer then self.ContentLayer.Visible = false end
+
+        safeTween(self.MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, self.DefaultWidth, 0, self.DefaultHeight),
+            Position = UDim2.new(0.5, -self.DefaultWidth / 2, 0.5, -self.DefaultHeight / 2),
+            Rotation = 0,
+            BackgroundTransparency = 0,
+        })
+        if self.MainStroke then
+            safeTween(self.MainStroke, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Transparency = 0.2 })
+        end
+
+        task.delay(0.5, function()
+            if self.ContentLayer then self.ContentLayer.Visible = true end
+            if self.OpenButton then self.OpenButton.Visible = false end
+            task.delay(0.15, function() self.IsAnimating = false end)
+        end)
+    end
+
+    function windowState:Close()
+        if self.IsAnimating then return end
+        if not self.IsOpen then return end
+        self.IsAnimating = true
+        self.IsOpen = false
+        playClickSound()
+
+        if self.ContentLayer then self.ContentLayer.Visible = false end
+
+        safeTween(self.MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Rotation = -180,
+            BackgroundTransparency = 1,
+        })
+        if self.MainStroke then
+            safeTween(self.MainStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1 })
+        end
+
+        task.delay(0.45, function()
+            if self.MainFrame then
+                self.MainFrame.Visible = false
+                self.MainFrame.Rotation = 0
+            end
+            if self.OpenButton then
+                self.OpenButton.Visible = true
+                self.OpenButton.Size = UDim2.new(0, 0, 0, 0)
+                safeTween(self.OpenButton, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(0, 60, 0, 60) })
+            end
+            task.delay(0.4, function() self.IsAnimating = false end)
+        end)
+    end
 
     function windowState:Destroy()
         self.TitleAnimStop = true
         if self.ScreenGui then
             pcall(function() self.ScreenGui:Destroy() end)
-        end
-        for i, w in ipairs(State.Windows) do
-            if w == self then
-                table.remove(State.Windows, i)
-                break
-            end
         end
     end
 
@@ -649,7 +863,7 @@ function Library:CreateWindow(config)
         Page.BackgroundTransparency = 1
         Page.BorderSizePixel = 0
         Page.ScrollBarThickness = 6
-        Page.ScrollBarImageColor3 = Library:GetActiveColor()
+        Page.ScrollBarImageColor3 = Library.Scheme.AccentColor
         Page.ScrollBarImageTransparency = 0.4
         Page.CanvasSize = UDim2.new(0, 0, 0, 0)
         Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -1237,6 +1451,37 @@ function Library:CreateWindow(config)
                     self.DropdownFrame = DropFrame
                 end
 
+                function DropdownObj:Set(value)
+                    if self.Multi then
+                        if type(value) == "table" then
+                            self.Value = value
+                        end
+                    else
+                        self.Value = value
+                    end
+                    self:UpdateText()
+                    pcall(callback, self.Value)
+                end
+
+                function DropdownObj:SetValue(value)
+                    self:Set(value)
+                end
+
+                function DropdownObj:SetValues(newValues)
+                    self.Values = newValues
+                    if self.IsOpen then
+                        self:CloseDropdown()
+                    end
+                end
+
+                function DropdownObj:Refresh(newValues)
+                    if newValues then self.Values = newValues end
+                    if self.IsOpen then
+                        self:CloseDropdown()
+                        self:OpenDropdown()
+                    end
+                end
+
                 DropdownBtn.MouseEnter:Connect(function()
                     safeTween(DropdownBtn, TweenInfo.new(0.15), { BackgroundColor3 = Library.Scheme.ButtonHover })
                 end)
@@ -1482,26 +1727,101 @@ function Library:CreateWindow(config)
         pulseButton(MinimizeButton)
         flashButton(MinimizeButton, Library:GetActiveColor())
     end)
+    -- FIX: call methods on this specific window state, not on Library.
     MinimizeButton.MouseButton1Click:Connect(function()
-        playClickSound()
-        windowState:Minimize()
+        windowState:Close()
+    end)
+
+    OpenButton.MouseButton1Down:Connect(function()
+        pulseButton(OpenButton)
+    end)
+    OpenButton.MouseButton1Click:Connect(function()
+        windowState:Open()
+    end)
+
+    local draggingBall = false
+    local dragInputBall = nil
+    local dragStartBall = nil
+    local startPosBall = nil
+
+    OpenButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingBall = true
+            dragStartBall = input.Position
+            startPosBall = OpenButton.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    draggingBall = false
+                end
+            end)
+        end
+    end)
+    OpenButton.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInputBall = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInputBall and draggingBall then
+            local delta = input.Position - dragStartBall
+            OpenButton.Position = UDim2.new(
+                startPosBall.X.Scale, startPosBall.X.Offset + delta.X,
+                startPosBall.Y.Scale, startPosBall.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    ResizeGrip.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            windowState.Resizing = true
+            windowState.ResizeStartMouse = Vector2.new(input.Position.X, input.Position.Y)
+            local currentSize = MainFrame.AbsoluteSize
+            windowState.ResizeStartSize = Vector2.new(currentSize.X, currentSize.Y)
+            safeTween(ResizeGrip, TweenInfo.new(0.15), { Size = UDim2.new(0, 26, 0, 26) })
+        end
+    end)
+    ResizeGrip.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            windowState.Resizing = false
+            safeTween(ResizeGrip, TweenInfo.new(0.15), { Size = UDim2.new(0, 22, 0, 22) })
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if windowState.Resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            if not windowState.ResizeStartMouse or not windowState.ResizeStartSize then return end
+            local deltaX = input.Position.X - windowState.ResizeStartMouse.X
+            local deltaY = input.Position.Y - windowState.ResizeStartMouse.Y
+            local newWidth = math.clamp(windowState.ResizeStartSize.X + deltaX, Library.MinWindowSize.X, Library.MaxWindowSize.X)
+            local newHeight = math.clamp(windowState.ResizeStartSize.Y + deltaY, Library.MinWindowSize.Y, Library.MaxWindowSize.Y)
+            MainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+        end
     end)
 
     task.spawn(function()
         while ScreenGui.Parent do
             local t = tick()
             local r = (math.sin(t * 3) + 1) / 2
-            local baseColor = isRainbow() and (Library.RainbowColor or Library.Scheme.AccentColor) or Library:GetActiveColor()
+            local baseColor = isRainbow() and (Library.RainbowColor or Library.Scheme.AccentColor) or Library.Scheme.AccentColor
             local darkColor = isRainbow() and (Library.RainbowColor or Library.Scheme.AccentDark) or Library.Scheme.AccentDark
             local color = Color3.lerp(baseColor, darkColor, r)
-            pcall(function()
-                if MainStroke then MainStroke.Color = color end
-                if CreditsStroke then CreditsStroke.Color = color end
-                if MinStroke then MinStroke.Color = color end
-            end)
+            if MainStroke then MainStroke.Color = color end
+            if OpenStroke then OpenStroke.Color = color end
+            if CreditsStroke then CreditsStroke.Color = color end
+            if MinStroke then MinStroke.Color = color end
+            if TitleGlowFrame then TitleGlowFrame.BackgroundColor3 = color end
+            if GripCorner then GripCorner.BackgroundColor3 = color end
             task.wait(0.05)
         end
     end)
+
+    if config.AutoOpen ~= false then
+        task.spawn(function()
+            task.wait(0.15)
+            windowState:Open()
+            task.wait(0.7)
+            windowState:StartTitleAnimation()
+        end)
+    end
 
     return windowState
 end
@@ -1509,7 +1829,13 @@ end
 function Library:Unload()
     if Library.Unloaded then return end
     Library.Unloaded = true
+    if Library.OnUnloadCallback then
+        pcall(Library.OnUnloadCallback)
+    end
     for _, win in ipairs(State.Windows) do
+        if win.TitleAnimThread then
+            win.TitleAnimStop = true
+        end
         if win.ScreenGui then pcall(function() win.ScreenGui:Destroy() end) end
     end
     State.Windows = {}
@@ -1519,38 +1845,8 @@ function Library:Unload()
     end
 end
 
-function Library:Hide()
-    for _, win in ipairs(State.Windows) do
-        win:Minimize()
-    end
-end
-
-function Library:Show()
-    for _, win in ipairs(State.Windows) do
-        win:Restore()
-    end
-end
-
-function Library:Close()
-    Library:Hide()
-end
-
-function Library:Open()
-    Library:Show()
-end
-
-function Library:Toggle()
-    for _, win in ipairs(State.Windows) do
-        win:Toggle()
-    end
-end
-
-function Library:Destroy()
-    Library:Unload()
-end
-
 function Library:OnUnload(callback)
-    Library.UnloadCallback = callback
+    Library.OnUnloadCallback = callback
 end
 
 function Library:SetToggleKeybind(keyCode)
@@ -1571,7 +1867,13 @@ end
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if Library.ToggleKeybind and input.KeyCode == Library.ToggleKeybind then
-        Library:Toggle()
+        for _, win in ipairs(State.Windows) do
+            if win.IsOpen then
+                win:Close()
+            else
+                win:Open()
+            end
+        end
     end
 end)
 
@@ -1591,9 +1893,6 @@ task.spawn(function()
     end
 end)
 
-if getgenv then
-    getgenv().KING_UI_FLOW = Library
-    getgenv().UILib = Library
-end
+getgenv().UILib = Library
 
 return Library
