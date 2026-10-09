@@ -378,6 +378,20 @@ function Library:CreateWindow(config)
     local ShowCredits = (Footer ~= "" and Footer ~= nil)
     local ScreenGuiName = config.Name or "UILib_Window"
 
+    -- Remove the previous copy of this GUI before creating a new one.
+    local guiParent = (gethui and gethui()) or CoreGui
+    local previousGui = guiParent:FindFirstChild(ScreenGuiName)
+    if previousGui then
+        previousGui:Destroy()
+    end
+    -- Also check CoreGui in case the previous copy was parented there.
+    if CoreGui and guiParent ~= CoreGui then
+        local previousCoreGui = CoreGui:FindFirstChild(ScreenGuiName)
+        if previousCoreGui then
+            previousCoreGui:Destroy()
+        end
+    end
+
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = ScreenGuiName
     ScreenGui.ResetOnSpawn = false
