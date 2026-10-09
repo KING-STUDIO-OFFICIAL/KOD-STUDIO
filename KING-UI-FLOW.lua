@@ -556,12 +556,22 @@ function Library:CreateWindow(config)
         CreditsLabel.Parent = CreditsPanel
     end
 
-    local TabBar = Instance.new("Frame")
+    -- Horizontal scrolling tab strip: tabs stay readable when there are many.
+    local TabBar = Instance.new("ScrollingFrame")
     TabBar.Name = "TabBar"
-    TabBar.Size = UDim2.new(1, -20, 0, 34)
+    TabBar.Size = UDim2.new(1, -20, 0, 38)
     TabBar.Position = UDim2.new(0, 10, 0, 62)
-    TabBar.BackgroundColor3 = Library.Scheme.BackgroundSecondary
+    TabBar.BackgroundTransparency = 1
     TabBar.BorderSizePixel = 0
+    -- Match BLOOD-LIBRARY: clean horizontal scrolling with no visible scrollbar.
+    TabBar.ScrollBarThickness = 0
+    TabBar.ScrollBarImageTransparency = 1
+    TabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
+    TabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+    TabBar.ScrollingDirection = Enum.ScrollingDirection.X
+    TabBar.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+    TabBar.Active = true
+    TabBar.ClipsDescendants = true
     TabBar.ZIndex = 20
     TabBar.Parent = ContentLayer
 
@@ -572,14 +582,19 @@ function Library:CreateWindow(config)
     local TabLayout = Instance.new("UIListLayout")
     TabLayout.FillDirection = Enum.FillDirection.Horizontal
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    TabLayout.Padding = UDim.new(0, 4)
+    TabLayout.Padding = UDim.new(0, 12)
     TabLayout.Parent = TabBar
 
+    -- Keep the canvas wide enough for every tab button.
+    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabBar.CanvasSize = UDim2.new(0, TabLayout.AbsoluteContentSize.X + 8, 0, 0)
+    end)
+
     local TabPadding = Instance.new("UIPadding")
-    TabPadding.PaddingLeft = UDim.new(0, 4)
-    TabPadding.PaddingRight = UDim.new(0, 4)
-    TabPadding.PaddingTop = UDim.new(0, 4)
-    TabPadding.PaddingBottom = UDim.new(0, 4)
+    TabPadding.PaddingLeft = UDim.new(0, 0)
+    TabPadding.PaddingRight = UDim.new(0, 0)
+    TabPadding.PaddingTop = UDim.new(0, 2)
+    TabPadding.PaddingBottom = UDim.new(0, 2)
     TabPadding.Parent = TabBar
 
     local PagesFrame = Instance.new("Frame")
@@ -842,7 +857,7 @@ function Library:CreateWindow(config)
 
         local TabButton = Instance.new("TextButton")
         TabButton.Name = "Tab_" .. name
-        TabButton.Size = UDim2.new(1 / math.max(#self.Tabs + 1, 3), -3, 1, 0)
+        TabButton.Size = UDim2.new(0, math.max(60, TabButton.TextBounds.X + 20), 1, -4)
         TabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         TabButton.Text = name
         TabButton.TextColor3 = Library.Scheme.Text
