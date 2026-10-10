@@ -46,6 +46,8 @@ Library.Inputs = {}
 Library.Buttons = {}
 Library.Labels = {}
 Library.KeyPickers = {}
+Library.ColorPickers = {}
+Library.Folders = {}
 
 Library.ColorPreset = "Purple"
 Library.CurrentColor = Library.Scheme.AccentColor
@@ -57,15 +59,18 @@ Library.ToggleKeybind = nil
 Library.OnUnloadCallback = nil
 Library.NotificationsEnabled = true
 Library.NotifySide = "Right"
-Library.Version = "1.0.0"
+Library.Version = "1.1.0"
 Library.DefaultWindowSize = UDim2.fromOffset(320, 560)
 Library.MinWindowSize = Vector2.new(300, 400)
 Library.MaxWindowSize = Vector2.new(700, 900)
+Library.RippleEnabled = true
+Library.TabParticlesEnabled = true
 
 local State = {
     Windows = {},
     ActiveNotifications = {},
     NotifyContainer = nil,
+    Binding = false,
 }
 
 local function playClickSound()
@@ -93,6 +98,27 @@ end
 
 local function isRainbow()
     return Library.ColorPreset == "Rainbow"
+end
+
+local function rgbToHsv(r, g, b)
+    r, g, b = r / 255, g / 255, b / 255
+    local max, min = math.max(r, g, b), math.min(r, g, b)
+    local h, s, v = 0, 0, max
+    local d = max - min
+    s = max == 0 and 0 or d / max
+    if max == min then
+        h = 0
+    else
+        if max == r then
+            h = (g - b) / d + (g < b and 6 or 0)
+        elseif max == g then
+            h = (b - r) / d + 2
+        elseif max == b then
+            h = (r - g) / d + 4
+        end
+        h = h / 6
+    end
+    return h, s, v
 end
 
 function Library:GetActiveColor()
@@ -306,7 +332,7 @@ local function createParticleBackground(parent, count)
 
             local gCorner = Instance.new("UICorner")
             gCorner.CornerRadius = UDim.new(1, 0)
-            gCorner.Parent = glow
+            gCorner.Parent = gCorner
 
             safeTween(glow,
                 TweenInfo.new(math.random(2, 4), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
@@ -360,8 +386,108 @@ local function flashButton(btn, color)
     game:GetService("Debris"):AddItem(flash, 0.3)
 end
 
+local function rippleButton(btn, mouseX, mouseY)
+    if not Library.RippleEnabled then return end
+    if not btn or not btn.Parent then return end
+    task.spawn(function()
+        local originalClips = btn.ClipsDescendants
+        btn.ClipsDescendants = true
+
+        local ripple = Instance.new("Frame")
+        ripple.Name = "Ripple"
+        ripple.BackgroundColor3 = Color3.new(1, 1, 1)
+        ripple.BackgroundTransparency = 0.6
+        ripple.BorderSizePixel = 0
+        ripple.ZIndex = 999
+        ripple.Size = UDim2.new(0, 0, 0, 0)
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = ripple
+
+        local absPos = btn.AbsolutePosition
+        local relX = (mouseX or (absPos.X + btn.AbsoluteSize.X / 2)) - absPos.X
+        local relY = (mouseY or (absPos.Y + btn.AbsoluteSize.Y / 2)) - absPos.Y
+
+        ripple.Position = UDim2.new(0, relX, 0, relY)
+        ripple.Parent = btn
+
+        local maxSize = math.max(btn.AbsoluteSize.X, btn.AbsoluteSize.Y) * 1.5
+        safeTween(ripple,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {
+                Size = UDim2.new(0, maxSize, 0, maxSize),
+                Position = UDim2.new(0, relX - maxSize / 2, 0, relY - maxSize / 2),
+                BackgroundTransparency = 1,
+            })
+        task.wait(0.5)
+        if ripple then ripple:Destroy() end
+        btn.ClipsDescendants = originalClips
+    end)
+end
+
+local function emitTabParticles(tabButton)
+    if not Library.TabParticlesEnabled then return end
+    if not tabButton or not tabButton.Parent then return end
+    local size = tabButton.AbsoluteSize
+    for i = 1, 4 do
+        task.spawn(function()
+            local p = Instance.new("Frame")
+            p.Name = "TabParticle"
+            p.Size = UDim2.new(0, 1.5, 0, 1.5)
+            p.AnchorPoint = Vector2.new(0.5, 0.5)
+            p.BackgroundColor3 = Library:GetActiveColor()
+            p.BorderSizePixel = 0
+            p.ZIndex = tabButton.ZIndex + 15
+
+            local pc = Instance.new("UICorner")
+            pc.CornerRadius = UDim.new(1, 0)
+            pc.Parent = p
+
+            local side = math.random(1, 4)
+            local startX, startY
+            if side == 1 then
+                startX = math.random(5, math.max(6, size.X - 5))
+                startY = 1
+            elseif side == 2 then
+                startX = size.X - 1
+                startY = math.random(5, math.max(6, size.Y - 5))
+            elseif side == 3 then
+                startX = math.random(5, math.max(6, size.X - 5))
+                startY = size.Y - 1
+            else
+                startX = 1
+                startY = math.random(5, math.max(6, size.Y - 5))
+            end
+
+            p.Position = UDim2.new(0, startX, 0, startY)
+            p.Parent = tabButton
+
+            local centerX, centerY = size.X / 2, size.Y / 2
+            local dx, dy = startX - centerX, startY - centerY
+            local mag = math.sqrt(dx * dx + dy * dy)
+            if mag < 0.01 then mag = 1 end
+            dx, dy = dx / mag, dy / mag
+
+            local endX = startX + dx * 8
+            local endY = startY + dy * 8
+
+            safeTween(p,
+                TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {
+                    Position = UDim2.new(0, endX, 0, endY),
+                    BackgroundTransparency = 1,
+                })
+            task.wait(0.5)
+            if p then p:Destroy() end
+        end)
+    end
+end
+
 Library.PulseButton = pulseButton
 Library.FlashButton = flashButton
+Library.RippleButton = rippleButton
+Library.EmitTabParticles = emitTabParticles
 
 local Window = {}
 Window.__index = Window
@@ -377,20 +503,6 @@ function Library:CreateWindow(config)
     local ParticleCount = config.Particles or 24
     local ShowCredits = (Footer ~= "" and Footer ~= nil)
     local ScreenGuiName = config.Name or "UILib_Window"
-
-    -- Remove the previous copy of this GUI before creating a new one.
-    local guiParent = (gethui and gethui()) or CoreGui
-    local previousGui = guiParent:FindFirstChild(ScreenGuiName)
-    if previousGui then
-        previousGui:Destroy()
-    end
-    -- Also check CoreGui in case the previous copy was parented there.
-    if CoreGui and guiParent ~= CoreGui then
-        local previousCoreGui = CoreGui:FindFirstChild(ScreenGuiName)
-        if previousCoreGui then
-            previousCoreGui:Destroy()
-        end
-    end
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = ScreenGuiName
@@ -570,22 +682,12 @@ function Library:CreateWindow(config)
         CreditsLabel.Parent = CreditsPanel
     end
 
-    -- Horizontal scrolling tab strip: tabs stay readable when there are many.
-    local TabBar = Instance.new("ScrollingFrame")
+    local TabBar = Instance.new("Frame")
     TabBar.Name = "TabBar"
-    TabBar.Size = UDim2.new(1, -20, 0, 38)
+    TabBar.Size = UDim2.new(1, -20, 0, 34)
     TabBar.Position = UDim2.new(0, 10, 0, 62)
-    TabBar.BackgroundTransparency = 1
+    TabBar.BackgroundColor3 = Library.Scheme.BackgroundSecondary
     TabBar.BorderSizePixel = 0
-    -- Match BLOOD-LIBRARY: clean horizontal scrolling with no visible scrollbar.
-    TabBar.ScrollBarThickness = 0
-    TabBar.ScrollBarImageTransparency = 1
-    TabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
-    TabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
-    TabBar.ScrollingDirection = Enum.ScrollingDirection.X
-    TabBar.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
-    TabBar.Active = true
-    TabBar.ClipsDescendants = true
     TabBar.ZIndex = 20
     TabBar.Parent = ContentLayer
 
@@ -596,19 +698,14 @@ function Library:CreateWindow(config)
     local TabLayout = Instance.new("UIListLayout")
     TabLayout.FillDirection = Enum.FillDirection.Horizontal
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    TabLayout.Padding = UDim.new(0, 12)
+    TabLayout.Padding = UDim.new(0, 4)
     TabLayout.Parent = TabBar
 
-    -- Keep the canvas wide enough for every tab button.
-    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        TabBar.CanvasSize = UDim2.new(0, TabLayout.AbsoluteContentSize.X + 8, 0, 0)
-    end)
-
     local TabPadding = Instance.new("UIPadding")
-    TabPadding.PaddingLeft = UDim.new(0, 0)
-    TabPadding.PaddingRight = UDim.new(0, 0)
-    TabPadding.PaddingTop = UDim.new(0, 2)
-    TabPadding.PaddingBottom = UDim.new(0, 2)
+    TabPadding.PaddingLeft = UDim.new(0, 4)
+    TabPadding.PaddingRight = UDim.new(0, 4)
+    TabPadding.PaddingTop = UDim.new(0, 4)
+    TabPadding.PaddingBottom = UDim.new(0, 4)
     TabPadding.Parent = TabBar
 
     local PagesFrame = Instance.new("Frame")
@@ -702,9 +799,7 @@ function Library:CreateWindow(config)
     table.insert(State.Windows, windowState)
 
     function windowState:SetFooter(text)
-        if CreditsLabel then
-            CreditsLabel.Text = text
-        end
+        if CreditsLabel then CreditsLabel.Text = text end
     end
 
     function windowState:SetTitle(text)
@@ -871,7 +966,7 @@ function Library:CreateWindow(config)
 
         local TabButton = Instance.new("TextButton")
         TabButton.Name = "Tab_" .. name
-        TabButton.Size = UDim2.new(0, math.max(60, TabButton.TextBounds.X + 20), 1, -4)
+        TabButton.Size = UDim2.new(1 / math.max(#self.Tabs + 1, 3), -3, 1, 0)
         TabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         TabButton.Text = name
         TabButton.TextColor3 = Library.Scheme.Text
@@ -1041,6 +1136,7 @@ function Library:CreateWindow(config)
                 ToggleButton.TextSize = 12
                 ToggleButton.LayoutOrder = #self.Items + 1
                 ToggleButton.AutoButtonColor = false
+                ToggleButton.ClipsDescendants = true
                 ToggleButton.ZIndex = 24
                 ToggleButton.Parent = self.Content
 
@@ -1093,9 +1189,12 @@ function Library:CreateWindow(config)
                         safeTween(ToggleButton, TweenInfo.new(0.15), { BackgroundColor3 = Library.Scheme.ButtonOff })
                     end
                 end)
-                ToggleButton.MouseButton1Down:Connect(function()
+                ToggleButton.MouseButton1Down:Connect(function(input)
                     pulseButton(ToggleButton)
                     flashButton(ToggleButton, ToggleObj.Value and Library:GetActiveColor() or Library.Scheme.AccentColor)
+                    local mouseX = input and input.Position and input.Position.X or nil
+                    local mouseY = input and input.Position and input.Position.Y or nil
+                    rippleButton(ToggleButton, mouseX, mouseY)
                 end)
                 ToggleButton.MouseButton1Click:Connect(function()
                     playClickSound()
@@ -1124,6 +1223,7 @@ function Library:CreateWindow(config)
                 Button.TextSize = 12
                 Button.LayoutOrder = #self.Items + 1
                 Button.AutoButtonColor = false
+                Button.ClipsDescendants = true
                 Button.ZIndex = 24
                 Button.Parent = self.Content
                 Button:SetAttribute("BaseColor", bgColor)
@@ -1152,9 +1252,12 @@ function Library:CreateWindow(config)
                 Button.MouseLeave:Connect(function()
                     safeTween(Button, TweenInfo.new(0.15), { BackgroundColor3 = bgColor })
                 end)
-                Button.MouseButton1Down:Connect(function()
+                Button.MouseButton1Down:Connect(function(input)
                     pulseButton(Button)
                     flashButton(Button, Library:GetActiveColor())
+                    local mouseX = input and input.Position and input.Position.X or nil
+                    local mouseY = input and input.Position and input.Position.Y or nil
+                    rippleButton(Button, mouseX, mouseY)
                 end)
                 Button.MouseButton1Click:Connect(function()
                     playClickSound()
@@ -1358,6 +1461,7 @@ function Library:CreateWindow(config)
                 DropdownBtn.TextSize = 12
                 DropdownBtn.LayoutOrder = #self.Items + 1
                 DropdownBtn.AutoButtonColor = false
+                DropdownBtn.ClipsDescendants = true
                 DropdownBtn.ZIndex = 24
                 DropdownBtn.Parent = self.Content
 
@@ -1482,9 +1586,7 @@ function Library:CreateWindow(config)
 
                 function DropdownObj:Set(value)
                     if self.Multi then
-                        if type(value) == "table" then
-                            self.Value = value
-                        end
+                        if type(value) == "table" then self.Value = value end
                     else
                         self.Value = value
                     end
@@ -1498,9 +1600,7 @@ function Library:CreateWindow(config)
 
                 function DropdownObj:SetValues(newValues)
                     self.Values = newValues
-                    if self.IsOpen then
-                        self:CloseDropdown()
-                    end
+                    if self.IsOpen then self:CloseDropdown() end
                 end
 
                 function DropdownObj:Refresh(newValues)
@@ -1642,6 +1742,34 @@ function Library:CreateWindow(config)
                     Type = "KeyPicker",
                 }
 
+                local shortNames = {
+                    RightControl = "RightCtrl",
+                    LeftControl = "LeftCtrl",
+                    LeftShift = "LShift",
+                    RightShift = "RShift",
+                    MouseButton1 = "Mouse1",
+                    MouseButton2 = "Mouse2",
+                }
+
+                local function updateText()
+                    local display = shortNames[KeyObj.Value] or KeyObj.Value
+                    KeyBtn.Text = text .. ": " .. display
+                end
+
+                function KeyObj:SetKey(keyName)
+                    self.Value = keyName
+                    updateText()
+                end
+
+                function KeyObj:Set(value)
+                    if type(value) == "EnumItem" then
+                        self.Value = value.Name
+                    else
+                        self.Value = tostring(value)
+                    end
+                    updateText()
+                end
+
                 KeyBtn.MouseEnter:Connect(function()
                     safeTween(KeyBtn, TweenInfo.new(0.15), { BackgroundColor3 = Library.Scheme.ButtonHover })
                 end)
@@ -1650,8 +1778,20 @@ function Library:CreateWindow(config)
                 end)
                 KeyBtn.MouseButton1Click:Connect(function()
                     playClickSound()
+                    if KeyObj.IsBinding then return end
                     KeyObj.IsBinding = true
                     KeyBtn.Text = text .. ": ..."
+                    local input = UserInputService.InputBegan:Wait()
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        KeyObj.Value = input.KeyCode.Name
+                    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        KeyObj.Value = "MouseButton1"
+                    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+                        KeyObj.Value = "MouseButton2"
+                    end
+                    KeyObj.IsBinding = false
+                    updateText()
+                    pcall(callback, KeyObj.Value)
                 end)
 
                 table.insert(self.Items, KeyObj)
@@ -1660,32 +1800,523 @@ function Library:CreateWindow(config)
 
                 UserInputService.InputBegan:Connect(function(input, gpe)
                     if gpe then return end
-                    if KeyObj.IsBinding then
-                        KeyObj.IsBinding = false
-                        if input.UserInputType == Enum.UserInputType.Keyboard then
-                            local keyName = input.KeyCode.Name
-                            KeyObj.Value = keyName
-                            KeyBtn.Text = text .. ": " .. keyName
-                            pcall(callback, keyName)
-                        end
-                        return
-                    end
-                    if input.UserInputType == Enum.UserInputType.Keyboard then
-                        if KeyObj.Value == input.KeyCode.Name then
+                    if KeyObj.IsBinding then return end
+                    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == KeyObj.Value then
+                        if KeyObj.Mode == "Toggle" then
+                            pcall(callback, true)
+                        else
                             pcall(callback, true)
                         end
                     end
                 end)
 
                 UserInputService.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.Keyboard then
-                        if KeyObj.Value == input.KeyCode.Name and KeyObj.Mode ~= "Toggle" then
+                    if KeyObj.IsBinding then return end
+                    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == KeyObj.Value then
+                        if KeyObj.Mode ~= "Toggle" then
                             pcall(callback, false)
                         end
                     end
                 end)
 
                 return KeyObj
+            end
+
+            function groupObj:AddColorPicker(key, config)
+                config = config or {}
+                local text = config.Text or key
+                local default = config.Default or Color3.fromRGB(255, 255, 255)
+                local callback = config.Callback or function() end
+
+                local PickerLabel = Instance.new("TextLabel")
+                PickerLabel.Name = "ColorPickerLabel"
+                PickerLabel.Size = UDim2.new(1, 0, 0, 20)
+                PickerLabel.BackgroundTransparency = 1
+                PickerLabel.Text = text
+                PickerLabel.TextColor3 = Library.Scheme.TextDim
+                PickerLabel.Font = Enum.Font.Arcade
+                PickerLabel.TextSize = 12
+                PickerLabel.LayoutOrder = #self.Items + 1
+                PickerLabel.TextXAlignment = Enum.TextXAlignment.Left
+                PickerLabel.ZIndex = 24
+                PickerLabel.Parent = self.Content
+
+                local PickerContainer = Instance.new("Frame")
+                PickerContainer.Name = "ColorPickerContainer_" .. key
+                PickerContainer.Size = UDim2.new(1, 0, 0, 120)
+                PickerContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                PickerContainer.BorderSizePixel = 0
+                PickerContainer.LayoutOrder = #self.Items + 2
+                PickerContainer.ZIndex = 24
+                PickerContainer.Parent = self.Content
+
+                local ContainerCorner = Instance.new("UICorner")
+                ContainerCorner.CornerRadius = UDim.new(0, 6)
+                ContainerCorner.Parent = PickerContainer
+
+                local ContainerStroke = Instance.new("UIStroke")
+                ContainerStroke.Color = Library:GetActiveColor()
+                ContainerStroke.Thickness = 1
+                ContainerStroke.Transparency = 0.5
+                ContainerStroke.Parent = PickerContainer
+
+                local SVFrame = Instance.new("Frame")
+                SVFrame.Name = "SV"
+                SVFrame.Size = UDim2.new(0, 80, 0, 80)
+                SVFrame.Position = UDim2.new(0, 8, 0, 8)
+                SVFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                SVFrame.BorderSizePixel = 0
+                SVFrame.ZIndex = 25
+                SVFrame.Parent = PickerContainer
+
+                local SVCorner = Instance.new("UICorner")
+                SVCorner.CornerRadius = UDim.new(0, 4)
+                SVCorner.Parent = SVFrame
+
+                local SVSaturation = Instance.new("ImageLabel")
+                SVSaturation.Name = "Saturation"
+                SVSaturation.Size = UDim2.new(1, 0, 1, 0)
+                SVSaturation.BackgroundColor3 = Color3.new(1, 1, 1)
+                SVSaturation.BorderSizePixel = 0
+                SVSaturation.Image = "rbxassetid://4155801252"
+                SVSaturation.ZIndex = 26
+                SVSaturation.Parent = SVFrame
+
+                local SVCorner2 = Instance.new("UICorner")
+                SVCorner2.CornerRadius = UDim.new(0, 4)
+                SVCorner2.Parent = SVSaturation
+
+                local SVIndicator = Instance.new("Frame")
+                SVIndicator.Name = "Indicator"
+                SVIndicator.AnchorPoint = Vector2.new(0.5, 0.5)
+                SVIndicator.Size = UDim2.new(0, 8, 0, 8)
+                SVIndicator.Position = UDim2.new(1, 0, 0, 0)
+                SVIndicator.BackgroundTransparency = 1
+                SVIndicator.ZIndex = 27
+                SVIndicator.Parent = SVFrame
+
+                local SVIndicatorCorner = Instance.new("UICorner")
+                SVIndicatorCorner.CornerRadius = UDim.new(1, 0)
+                SVIndicatorCorner.Parent = SVIndicator
+
+                local SVIndicatorStroke = Instance.new("UIStroke")
+                SVIndicatorStroke.Color = Color3.new(1, 1, 1)
+                SVIndicatorStroke.Thickness = 2
+                SVIndicatorStroke.Parent = SVIndicator
+
+                local HueBar = Instance.new("Frame")
+                HueBar.Name = "Hue"
+                HueBar.Size = UDim2.new(0, 15, 0, 80)
+                HueBar.Position = UDim2.new(0, 96, 0, 8)
+                HueBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                HueBar.BorderSizePixel = 0
+                HueBar.ZIndex = 25
+                HueBar.Parent = PickerContainer
+
+                local HueCorner = Instance.new("UICorner")
+                HueCorner.CornerRadius = UDim.new(0, 4)
+                HueCorner.Parent = HueBar
+
+                local HueGradient = Instance.new("UIGradient")
+                HueGradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                    ColorSequenceKeypoint.new(0.167, Color3.fromRGB(255, 255, 0)),
+                    ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
+                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+                    ColorSequenceKeypoint.new(0.667, Color3.fromRGB(0, 0, 255)),
+                    ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0)),
+                })
+                HueGradient.Rotation = 90
+                HueGradient.Parent = HueBar
+
+                local HueIndicator = Instance.new("Frame")
+                HueIndicator.Name = "Indicator"
+                HueIndicator.AnchorPoint = Vector2.new(0, 0.5)
+                HueIndicator.Size = UDim2.new(1, 0, 0, 3)
+                HueIndicator.Position = UDim2.new(0, 0, 0, 0)
+                HueIndicator.BackgroundColor3 = Color3.new(1, 1, 1)
+                HueIndicator.BorderSizePixel = 0
+                HueIndicator.ZIndex = 27
+                HueIndicator.Parent = HueBar
+
+                local HueIndicatorStroke = Instance.new("UIStroke")
+                HueIndicatorStroke.Color = Color3.new(0, 0, 0)
+                HueIndicatorStroke.Thickness = 1
+                HueIndicatorStroke.Parent = HueIndicator
+
+                local Sample = Instance.new("Frame")
+                Sample.Name = "Sample"
+                Sample.Size = UDim2.new(0, 50, 0, 30)
+                Sample.Position = UDim2.new(0, 8, 0, 96)
+                Sample.BackgroundColor3 = default
+                Sample.BorderSizePixel = 0
+                Sample.ZIndex = 25
+                Sample.Parent = PickerContainer
+
+                local SampleCorner = Instance.new("UICorner")
+                SampleCorner.CornerRadius = UDim.new(0, 4)
+                SampleCorner.Parent = Sample
+
+                local SampleStroke = Instance.new("UIStroke")
+                SampleStroke.Color = Library:GetActiveColor()
+                SampleStroke.Thickness = 1
+                SampleStroke.Transparency = 0.3
+                SampleStroke.Parent = Sample
+
+                local HexInput = Instance.new("TextBox")
+                HexInput.Name = "HexInput"
+                HexInput.Size = UDim2.new(1, -74, 0, 30)
+                HexInput.Position = UDim2.new(0, 66, 0, 96)
+                HexInput.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+                HexInput.BorderSizePixel = 0
+                HexInput.Text = "#FFFFFF"
+                HexInput.TextColor3 = Library.Scheme.Text
+                HexInput.Font = Enum.Font.Arcade
+                HexInput.TextSize = 12
+                HexInput.ClearTextOnFocus = false
+                HexInput.ZIndex = 25
+                HexInput.Parent = PickerContainer
+
+                local HexCorner = Instance.new("UICorner")
+                HexCorner.CornerRadius = UDim.new(0, 4)
+                HexCorner.Parent = HexInput
+
+                local HexStroke = Instance.new("UIStroke")
+                HexStroke.Color = Library:GetActiveColor()
+                HexStroke.Thickness = 1
+                HexStroke.Transparency = 0.5
+                HexStroke.Parent = HexInput
+
+                local hue, sat, val = rgbToHsv(default.R * 255, default.G * 255, default.B * 255)
+
+                local function updateAllVisuals(silent)
+                    local color = Color3.fromHSV(hue, sat, val)
+                    SVFrame.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+                    SVIndicator.Position = UDim2.new(sat, 0, 1 - val, 0)
+                    HueIndicator.Position = UDim2.new(0, 0, hue, 0)
+                    Sample.BackgroundColor3 = color
+                    if not silent then
+                        HexInput.Text = string.format("#%02X%02X%02X",
+                            math.floor(color.R * 255 + 0.5),
+                            math.floor(color.G * 255 + 0.5),
+                            math.floor(color.B * 255 + 0.5))
+                    end
+                end
+
+                local function hexToColor(hex)
+                    hex = hex:gsub("#", ""):gsub("%s", "")
+                    if #hex ~= 6 then return nil end
+                    local r = tonumber(hex:sub(1, 2), 16)
+                    local g = tonumber(hex:sub(3, 4), 16)
+                    local b = tonumber(hex:sub(5, 6), 16)
+                    if not (r and g and b) then return nil end
+                    return Color3.fromRGB(r, g, b)
+                end
+
+                local PickerObj = {
+                    Key = key,
+                    Text = text,
+                    Value = default,
+                    Holder = PickerContainer,
+                    Sample = Sample,
+                    Type = "ColorPicker",
+                }
+
+                function PickerObj:Set(color)
+                    if typeof(color) ~= "Color3" then return end
+                    hue, sat, val = rgbToHsv(color.R * 255, color.G * 255, color.B * 255)
+                    self.Value = color
+                    updateAllVisuals()
+                    pcall(callback, color)
+                end
+
+                function PickerObj:SetValue(color)
+                    self:Set(color)
+                end
+
+                function PickerObj:Get()
+                    return self.Value
+                end
+
+                local svDragging = false
+                local hueDragging = false
+
+                SVSaturation.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        svDragging = true
+                    end
+                end)
+                SVSaturation.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        svDragging = false
+                    end
+                end)
+                HueBar.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        hueDragging = true
+                    end
+                end)
+                HueBar.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        hueDragging = false
+                    end
+                end)
+
+                UserInputService.InputChanged:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                        if svDragging then
+                            local mouse = UserInputService:GetMouseLocation()
+                            local absPos = SVSaturation.AbsolutePosition
+                            local absSize = SVSaturation.AbsoluteSize
+                            local x = math.clamp((mouse.X - absPos.X) / absSize.X, 0, 1)
+                            local y = math.clamp((mouse.Y - absPos.Y) / absSize.Y, 0, 1)
+                            sat = x
+                            val = 1 - y
+                            PickerObj.Value = Color3.fromHSV(hue, sat, val)
+                            updateAllVisuals()
+                            pcall(callback, PickerObj.Value)
+                        elseif hueDragging then
+                            local mouse = UserInputService:GetMouseLocation()
+                            local absPos = HueBar.AbsolutePosition
+                            local absSize = HueBar.AbsoluteSize
+                            local y = math.clamp((mouse.Y - absPos.Y) / absSize.Y, 0, 1)
+                            hue = y
+                            PickerObj.Value = Color3.fromHSV(hue, sat, val)
+                            updateAllVisuals()
+                            pcall(callback, PickerObj.Value)
+                        end
+                    end
+                end)
+
+                HexInput.FocusLost:Connect(function()
+                    local parsed = hexToColor(HexInput.Text)
+                    if parsed then
+                        PickerObj:Set(parsed)
+                    else
+                        updateAllVisuals()
+                    end
+                end)
+
+                updateAllVisuals()
+
+                table.insert(self.Items, PickerObj)
+                Library.ColorPickers[key] = PickerObj
+                Library.Options[key] = PickerObj
+                return PickerObj
+            end
+
+            function groupObj:AddFolder(name)
+                local FolderFrame = Instance.new("Frame")
+                FolderFrame.Name = "Folder_" .. name
+                FolderFrame.Size = UDim2.new(1, 0, 0, 30)
+                FolderFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+                FolderFrame.BackgroundTransparency = 0.4
+                FolderFrame.BorderSizePixel = 0
+                FolderFrame.LayoutOrder = #self.Items + 1
+                FolderFrame.AutomaticSize = Enum.AutomaticSize.Y
+                FolderFrame.ClipsDescendants = true
+                FolderFrame.ZIndex = 24
+                FolderFrame.Parent = self.Content
+
+                local FolderCorner = Instance.new("UICorner")
+                FolderCorner.CornerRadius = UDim.new(0, 6)
+                FolderCorner.Parent = FolderFrame
+
+                local FolderStroke = Instance.new("UIStroke")
+                FolderStroke.Color = Library:GetActiveColor()
+                FolderStroke.Thickness = 1
+                FolderStroke.Transparency = 0.5
+                FolderStroke.Parent = FolderFrame
+
+                local FolderHeader = Instance.new("TextButton")
+                FolderHeader.Name = "Header"
+                FolderHeader.Size = UDim2.new(1, 0, 0, 30)
+                FolderHeader.BackgroundTransparency = 1
+                FolderHeader.Text = ""
+                FolderHeader.AutoButtonColor = false
+                FolderHeader.ZIndex = 25
+                FolderHeader.Parent = FolderFrame
+
+                local HeaderTitle = Instance.new("TextLabel")
+                HeaderTitle.Name = "Title"
+                HeaderTitle.Size = UDim2.new(1, -40, 1, 0)
+                HeaderTitle.Position = UDim2.new(0, 25, 0, 0)
+                HeaderTitle.BackgroundTransparency = 1
+                HeaderTitle.Text = name
+                HeaderTitle.TextColor3 = Library.Scheme.AccentLight
+                HeaderTitle.Font = Enum.Font.Arcade
+                HeaderTitle.TextSize = 13
+                HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+                HeaderTitle.ZIndex = 26
+                HeaderTitle.Parent = FolderHeader
+
+                local FolderArrow = Instance.new("TextLabel")
+                FolderArrow.Name = "Arrow"
+                FolderArrow.Size = UDim2.new(0, 20, 0, 20)
+                FolderArrow.Position = UDim2.new(0, 5, 0.5, -10)
+                FolderArrow.BackgroundTransparency = 1
+                FolderArrow.Text = "▶"
+                FolderArrow.TextColor3 = Library:GetActiveColor()
+                FolderArrow.Font = Enum.Font.Arcade
+                FolderArrow.TextSize = 12
+                FolderArrow.ZIndex = 26
+                FolderArrow.Parent = FolderHeader
+
+                local FolderContent = Instance.new("Frame")
+                FolderContent.Name = "Content"
+                FolderContent.Size = UDim2.new(1, -10, 0, 0)
+                FolderContent.Position = UDim2.new(0, 5, 0, 34)
+                FolderContent.BackgroundTransparency = 1
+                FolderContent.BorderSizePixel = 0
+                FolderContent.AutomaticSize = Enum.AutomaticSize.Y
+                FolderContent.Visible = false
+                FolderContent.ZIndex = 25
+                FolderContent.Parent = FolderFrame
+
+                local FolderLayout = Instance.new("UIListLayout")
+                FolderLayout.Parent = FolderContent
+                FolderLayout.SortOrder = Enum.SortOrder.LayoutOrder
+                FolderLayout.Padding = UDim.new(0, 6)
+
+                local folderObj = {
+                    Name = name,
+                    Frame = FolderFrame,
+                    Content = FolderContent,
+                    Header = FolderHeader,
+                    Arrow = FolderArrow,
+                    Stroke = FolderStroke,
+                    Layout = FolderLayout,
+                    Items = {},
+                    IsOpen = false,
+                }
+
+                function folderObj:Toggle()
+                    self.IsOpen = not self.IsOpen
+                    FolderContent.Visible = self.IsOpen
+                    FolderArrow.Text = self.IsOpen and "▼" or "▶"
+                    safeTween(FolderArrow, TweenInfo.new(0.15), { TextColor3 = Library:GetActiveColor() })
+                end
+
+                FolderHeader.MouseButton1Click:Connect(function()
+                    playClickSound()
+                    folderObj:Toggle()
+                end)
+
+                FolderHeader.MouseEnter:Connect(function()
+                    safeTween(FolderFrame, TweenInfo.new(0.15), { BackgroundTransparency = 0.2 })
+                end)
+                FolderHeader.MouseLeave:Connect(function()
+                    safeTween(FolderFrame, TweenInfo.new(0.15), { BackgroundTransparency = 0.4 })
+                end)
+
+                for methodName, methodFunc in pairs(self) do
+                    if type(methodFunc) == "function" and methodName:sub(1, 3) == "Add" then
+                        folderObj[methodName] = function(_, ...)
+                            local args = { ... }
+                            local originalContent = self.Content
+                            self.Content = FolderContent
+                            local result1, result2 = methodFunc(self, table.unpack(args))
+                            self.Content = originalContent
+                            if result1 then table.insert(folderObj.Items, result1) end
+                            return result1, result2
+                        end
+                    end
+                end
+
+                table.insert(self.Items, folderObj)
+                Library.Folders[name] = folderObj
+                return folderObj
+            end
+
+            function groupObj:AddHorizontalAlignment()
+                local RowFrame = Instance.new("Frame")
+                RowFrame.Name = "HorizontalAlignment"
+                RowFrame.Size = UDim2.new(1, 0, 0, 30)
+                RowFrame.BackgroundTransparency = 1
+                RowFrame.BorderSizePixel = 0
+                RowFrame.LayoutOrder = #self.Items + 1
+                RowFrame.ZIndex = 24
+                RowFrame.Parent = self.Content
+
+                local RowLayout = Instance.new("UIListLayout")
+                RowLayout.FillDirection = Enum.FillDirection.Horizontal
+                RowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+                RowLayout.Padding = UDim.new(0, 6)
+                RowLayout.Parent = RowFrame
+
+                local rowObj = {
+                    Frame = RowFrame,
+                    Layout = RowLayout,
+                    Items = {},
+                }
+
+                function rowObj:AddButton(config)
+                    config = config or {}
+                    local text = config.Text or config.Name or "Button"
+                    local func = config.Func or config.Callback or function() end
+
+                    local Button = Instance.new("TextButton")
+                    Button.Size = UDim2.new(0, 0, 1, 0)
+                    Button.AutomaticSize = Enum.AutomaticSize.X
+                    Button.BackgroundColor3 = Library.Scheme.BackgroundSecondary
+                    Button.Text = text
+                    Button.TextColor3 = Library.Scheme.Text
+                    Button.Font = Enum.Font.Arcade
+                    Button.TextSize = 12
+                    Button.AutoButtonColor = false
+                    Button.ClipsDescendants = true
+                    Button.ZIndex = 25
+                    Button.Parent = RowFrame
+
+                    local ButtonCorner = Instance.new("UICorner")
+                    ButtonCorner.CornerRadius = UDim.new(0, 6)
+                    ButtonCorner.Parent = Button
+
+                    local ButtonStroke = Instance.new("UIStroke")
+                    ButtonStroke.Color = Library:GetActiveColor()
+                    ButtonStroke.Thickness = 1
+                    ButtonStroke.Transparency = 0.5
+                    ButtonStroke.Parent = Button
+
+                    Button.MouseEnter:Connect(function()
+                        safeTween(Button, TweenInfo.new(0.15), { BackgroundColor3 = Library.Scheme.ButtonHover })
+                    end)
+                    Button.MouseLeave:Connect(function()
+                        safeTween(Button, TweenInfo.new(0.15), { BackgroundColor3 = Library.Scheme.BackgroundSecondary })
+                    end)
+                    Button.MouseButton1Down:Connect(function(input)
+                        pulseButton(Button)
+                        flashButton(Button, Library:GetActiveColor())
+                        rippleButton(Button, input and input.Position.X, input and input.Position.Y)
+                    end)
+                    Button.MouseButton1Click:Connect(function()
+                        playClickSound()
+                        pcall(func)
+                    end)
+
+                    table.insert(rowObj.Items, Button)
+                    return Button
+                end
+
+                function rowObj:AddLabel(text)
+                    local Label = Instance.new("TextLabel")
+                    Label.Size = UDim2.new(0, 0, 1, 0)
+                    Label.AutomaticSize = Enum.AutomaticSize.X
+                    Label.BackgroundTransparency = 1
+                    Label.Text = text
+                    Label.TextColor3 = Library.Scheme.TextDim
+                    Label.Font = Enum.Font.Arcade
+                    Label.TextSize = 12
+                    Label.ZIndex = 25
+                    Label.Parent = RowFrame
+
+                    table.insert(rowObj.Items, Label)
+                    return Label
+                end
+
+                table.insert(self.Items, rowObj)
+                return rowObj
             end
 
             function groupObj:AddDivider(dividerText)
@@ -1738,6 +2369,7 @@ function Library:CreateWindow(config)
 
         TabButton.MouseButton1Down:Connect(function()
             pulseButton(TabButton)
+            emitTabParticles(TabButton)
         end)
         TabButton.MouseButton1Click:Connect(function()
             playClickSound()
@@ -1756,16 +2388,15 @@ function Library:CreateWindow(config)
         pulseButton(MinimizeButton)
         flashButton(MinimizeButton, Library:GetActiveColor())
     end)
-    -- FIX: call methods on this specific window state, not on Library.
     MinimizeButton.MouseButton1Click:Connect(function()
-        windowState:Close()
+        self:Close()
     end)
 
     OpenButton.MouseButton1Down:Connect(function()
         pulseButton(OpenButton)
     end)
     OpenButton.MouseButton1Click:Connect(function()
-        windowState:Open()
+        self:Open()
     end)
 
     local draggingBall = false
@@ -1891,6 +2522,14 @@ end
 
 function Library:SetNotificationsEnabled(enabled)
     Library.NotificationsEnabled = enabled
+end
+
+function Library:SetRippleEnabled(enabled)
+    Library.RippleEnabled = enabled
+end
+
+function Library:SetTabParticlesEnabled(enabled)
+    Library.TabParticlesEnabled = enabled
 end
 
 UserInputService.InputBegan:Connect(function(input, gpe)
