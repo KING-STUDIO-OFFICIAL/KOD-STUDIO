@@ -332,7 +332,7 @@ local function createParticleBackground(parent, count)
 
             local gCorner = Instance.new("UICorner")
             gCorner.CornerRadius = UDim.new(1, 0)
-            gCorner.Parent = gCorner
+            gCorner.Parent = glow
 
             safeTween(glow,
                 TweenInfo.new(math.random(2, 4), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
@@ -2156,7 +2156,7 @@ function Library:CreateWindow(config)
                 FolderArrow.Size = UDim2.new(0, 20, 0, 20)
                 FolderArrow.Position = UDim2.new(0, 5, 0.5, -10)
                 FolderArrow.BackgroundTransparency = 1
-                FolderArrow.Text = "▶"
+                FolderArrow.Text = ">"
                 FolderArrow.TextColor3 = Library:GetActiveColor()
                 FolderArrow.Font = Enum.Font.Arcade
                 FolderArrow.TextSize = 12
@@ -2194,7 +2194,7 @@ function Library:CreateWindow(config)
                 function folderObj:Toggle()
                     self.IsOpen = not self.IsOpen
                     FolderContent.Visible = self.IsOpen
-                    FolderArrow.Text = self.IsOpen and "▼" or "▶"
+                    FolderArrow.Text = self.IsOpen and "v" or ">"
                     safeTween(FolderArrow, TweenInfo.new(0.15), { TextColor3 = Library:GetActiveColor() })
                 end
 
@@ -2210,18 +2210,76 @@ function Library:CreateWindow(config)
                     safeTween(FolderFrame, TweenInfo.new(0.15), { BackgroundTransparency = 0.4 })
                 end)
 
-                for methodName, methodFunc in pairs(self) do
-                    if type(methodFunc) == "function" and methodName:sub(1, 3) == "Add" then
-                        folderObj[methodName] = function(_, ...)
-                            local args = { ... }
-                            local originalContent = self.Content
-                            self.Content = FolderContent
-                            local result1, result2 = methodFunc(self, table.unpack(args))
-                            self.Content = originalContent
-                            if result1 then table.insert(folderObj.Items, result1) end
-                            return result1, result2
-                        end
-                    end
+                local originalContent = self.Content
+
+                function folderObj:AddToggle(key, config)
+                    self.Content = FolderContent
+                    local result = groupObj.AddToggle(self, key, config)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddButton(config)
+                    self.Content = FolderContent
+                    local result = groupObj.AddButton(self, config)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddLabel(text, wraps)
+                    self.Content = FolderContent
+                    local result = groupObj.AddLabel(self, text, wraps)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddSlider(key, config)
+                    self.Content = FolderContent
+                    local result = groupObj.AddSlider(self, key, config)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddDropdown(key, config)
+                    self.Content = FolderContent
+                    local result = groupObj.AddDropdown(self, key, config)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddInput(key, config)
+                    self.Content = FolderContent
+                    local result = groupObj.AddInput(self, key, config)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddKeyPicker(key, config)
+                    self.Content = FolderContent
+                    local result = groupObj.AddKeyPicker(self, key, config)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddColorPicker(key, config)
+                    self.Content = FolderContent
+                    local result = groupObj.AddColorPicker(self, key, config)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddDivider(dividerText)
+                    self.Content = FolderContent
+                    local result = groupObj.AddDivider(self, dividerText)
+                    self.Content = originalContent
+                    return result
+                end
+
+                function folderObj:AddHorizontalAlignment()
+                    self.Content = FolderContent
+                    local result = groupObj.AddHorizontalAlignment(self)
+                    self.Content = originalContent
+                    return result
                 end
 
                 table.insert(self.Items, folderObj)
